@@ -1,17 +1,9 @@
 services:
   - type: web
-    name: android-card-license-server
-    env: node
+    name: android-apk-license-packer
+    env: docker
     plan: free
-    buildCommand: npm install
-    startCommand: npm start
-    autoDeploy: false
+    autoDeploy: true
     envVars:
-      - key: APP_ID
-        value: demo_android_app
-      - key: APP_SECRET
-        value: change_this_app_secret
-      - key: RC4_KEY
-        value: change_this_rc4_key
-      - key: ADMIN_TOKEN
-        value: change_this_admin_token
+      - key: DEFAULT_LICENSE_SERVER
+        value: https://android-license-gateway-phone.pages.dev

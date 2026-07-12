@@ -1,0 +1,8 @@
+out
+work
+tools/apktool_*.jar
+server.out.log
+server.err.log
+*.apk
+*.keystore
+.git

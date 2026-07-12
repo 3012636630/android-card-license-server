@@ -1,13 +1,13 @@
 {
-  "name": "android-card-license-server",
+  "name": "android-apk-license-packer",
   "version": "1.0.0",
   "private": true,
-  "description": "Android card license verification server",
-  "main": "server.js",
+  "description": "Cloud APK license injection and protection service.",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "check": "node --check server.js"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   }
 }
