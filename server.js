@@ -297,18 +297,29 @@ public class LicenseActivity extends Activity {
 }
 
 async function addDex(apk, dexPath) {
-  const tmp = path.join(path.dirname(apk), "classes-add.dex");
-  fs.copyFileSync(dexPath, tmp);
   const entries = await zipList(apk);
   let n = 2;
   while (entries.includes(`classes${n}.dex`)) n++;
-  await run("powershell", ["-NoProfile", "-Command", `Add-Type -AssemblyName System.IO.Compression.FileSystem; $zip=[IO.Compression.ZipFile]::Open('${ps(apk)}','Update'); [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip,'${ps(tmp)}','classes${n}.dex'); $zip.Dispose()`], path.dirname(apk));
-  fs.unlinkSync(tmp);
+  const entryName = `classes${n}.dex`;
+  const entryDir = path.join(path.dirname(apk), "dex-entry");
+  fs.rmSync(entryDir, { recursive: true, force: true });
+  fs.mkdirSync(entryDir, { recursive: true });
+  fs.copyFileSync(dexPath, path.join(entryDir, entryName));
+  try {
+    await run(jarCommand(), ["uf", apk, "-C", entryDir, entryName], path.dirname(apk));
+  } finally {
+    fs.rmSync(entryDir, { recursive: true, force: true });
+  }
 }
 
 async function zipList(apk) {
-  const out = await runCapture("powershell", ["-NoProfile", "-Command", `Add-Type -AssemblyName System.IO.Compression.FileSystem; $zip=[IO.Compression.ZipFile]::OpenRead('${ps(apk)}'); $zip.Entries | ForEach-Object { $_.FullName }; $zip.Dispose()`], path.dirname(apk));
+  const out = await runCapture(jarCommand(), ["tf", apk], path.dirname(apk));
   return out.split(/\r?\n/).filter(Boolean);
+}
+
+function jarCommand() {
+  const javaHome = process.env.JAVA_HOME || (fs.existsSync("D:\\android\\jbr") ? "D:\\android\\jbr" : "");
+  return firstExisting([path.join(javaHome, "bin", "jar.exe"), path.join(javaHome, "bin", "jar"), "jar"]) || "jar";
 }
 
 function findVmpPacker() {
