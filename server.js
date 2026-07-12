@@ -70,6 +70,7 @@ async function processUpload(req, res, url) {
   const packageName = readPackageName(manifest);
   const launcher = readLauncherActivity(manifest, packageName);
   manifest = removeLauncherFilters(manifest);
+  manifest = addInternetPermission(manifest);
   manifest = addLicenseActivity(manifest);
   fs.writeFileSync(manifestPath, manifest, "utf8");
 
@@ -212,6 +213,11 @@ function readLauncherActivity(manifest, packageName) {
 
 function removeLauncherFilters(manifest) {
   return manifest.replace(/<intent-filter>[\s\S]*?android\.intent\.action\.MAIN[\s\S]*?android\.intent\.category\.LAUNCHER[\s\S]*?<\/intent-filter>/g, "");
+}
+
+function addInternetPermission(manifest) {
+  if (manifest.includes('android.permission.INTERNET')) return manifest;
+  return manifest.replace(/<application\b/, '    <uses-permission android:name="android.permission.INTERNET" />\n\n    <application');
 }
 
 function addLicenseActivity(manifest) {
