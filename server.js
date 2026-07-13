@@ -1,4 +1,4 @@
-const http = require("http");
+﻿const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
@@ -45,6 +45,7 @@ async function processUpload(req, res, url) {
   const appId = url.searchParams.get("appId") || "demo_android_app";
   const appSecret = url.searchParams.get("appSecret") || "change_this_app_secret";
   const rc4Key = url.searchParams.get("rc4Key") || "change_this_rc4_key";
+  const purchaseUrl = normalizeOptionalUrl(url.searchParams.get("purchaseUrl") || "");
   const obfuscate = url.searchParams.get("obfuscate") !== "0";
   const useVmp = url.searchParams.get("vmp") === "1";
   const id = new Date().toISOString().replace(/[-:.TZ]/g, "") + "-" + crypto.randomBytes(3).toString("hex");
@@ -74,7 +75,7 @@ async function processUpload(req, res, url) {
   manifest = addLicenseActivity(manifest);
   fs.writeFileSync(manifestPath, manifest, "utf8");
 
-  writeJavaSources(javaDir, packageName, launcher, serverUrl, appId, appSecret, rc4Key);
+  writeJavaSources(javaDir, packageName, launcher, serverUrl, appId, appSecret, rc4Key, purchaseUrl);
   fs.mkdirSync(classesDir, { recursive: true });
   const javaFiles = listFiles(javaDir).filter((f) => f.endsWith(".java"));
   await run(tools.javac, ["-encoding", "UTF-8", "-source", "8", "-target", "8", "-bootclasspath", tools.androidJar, "-d", classesDir, ...javaFiles], jobDir);
@@ -137,6 +138,7 @@ async function processUpload(req, res, url) {
     packageName,
     launcher,
     serverUrl,
+    purchaseUrl,
     obfuscationMessage,
     vmpMessage
   });
@@ -222,7 +224,7 @@ function addInternetPermission(manifest) {
 
 function addLicenseActivity(manifest) {
   const activity = `
-        <activity android:name=".LicenseActivity" android:screenOrientation="portrait" android:exported="true">
+        <activity android:name=".LicenseActivity" android:theme="@android:style/Theme.Material.NoActionBar" android:screenOrientation="portrait" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -238,7 +240,14 @@ function normalizeActivityName(name, packageName) {
   return name;
 }
 
-function writeJavaSources(root, packageName, launcher, serverUrl, appId, appSecret, rc4Key) {
+function normalizeOptionalUrl(value) {
+  let u = (value || "").trim();
+  if (!u) return "";
+  if (!u.startsWith("http://") && !u.startsWith("https://")) u = "https://" + u;
+  return u;
+}
+
+function writeJavaSources(root, packageName, launcher, serverUrl, appId, appSecret, rc4Key, purchaseUrl) {
   const dir = path.join(root, ...packageName.split("."));
   fs.mkdirSync(dir, { recursive: true });
   const pkg = `package ${packageName};`;
@@ -257,6 +266,7 @@ final class LicenseConfig {
   static final String APP_ID = "${javaString(appId)}";
   static final String APP_SECRET = "${javaString(appSecret)}";
   static final String RC4_KEY = "${javaString(rc4Key)}";
+  static final String PURCHASE_URL = "${javaString(purchaseUrl)}";
   static final String APP_VERSION = "1.0";
   private static final String PREFS = "license_config"; private static final String KEY_BASE_URL = "base_url";
   static String getBaseUrl(Context c){ return normalize(c.getSharedPreferences(PREFS,0).getString(KEY_BASE_URL, DEFAULT_BASE_URL)); }
@@ -272,10 +282,10 @@ final class LicenseClient {
   private final Context context; LicenseClient(Context c){ context = c.getApplicationContext(); }
   LicenseResult activate(String cardKey, String deviceId, String appVersion) throws Exception { JSONObject p = new JSONObject().put("cardKey",cardKey).put("deviceId",deviceId).put("appVersion",appVersion); return request("/api/activate", p); }
   LicenseResult heartbeat(String cardKey, String deviceId, String appVersion) throws Exception { JSONObject p = new JSONObject().put("cardKey",cardKey).put("deviceId",deviceId).put("appVersion",appVersion); return request("/api/heartbeat", p); }
-  private LicenseResult request(String path, JSONObject payload) throws Exception { JSONObject env = makeEnvelope(payload); Exception last = null; for(String base: LicenseConfig.getBaseUrls(context)){ try { return once(base, path, env); } catch(Exception e){ last = e; } } throw last == null ? new IllegalStateException("网络验证失败") : last; }
+  private LicenseResult request(String path, JSONObject payload) throws Exception { JSONObject env = makeEnvelope(payload); Exception last = null; for(String base: LicenseConfig.getBaseUrls(context)){ try { return once(base, path, env); } catch(Exception e){ last = e; } } throw last == null ? new IllegalStateException("network verify failed") : last; }
   private LicenseResult once(String base, String path, JSONObject env) throws Exception { HttpURLConnection c=(HttpURLConnection)new URL(base+path).openConnection(); c.setRequestMethod("POST"); c.setConnectTimeout(20000); c.setReadTimeout(20000); c.setDoOutput(true); c.setRequestProperty("Content-Type","application/json; charset=utf-8"); OutputStream o=c.getOutputStream(); o.write(env.toString().getBytes(StandardCharsets.UTF_8)); o.close(); InputStream in=c.getResponseCode()>=400?c.getErrorStream():c.getInputStream(); JSONObject data = open(new JSONObject(readAll(in))); return new LicenseResult(data.optBoolean("ok",false), data.optInt("code",-1), data.optString("message",""), data.optLong("expiresAt",0), data.optLong("remainingSeconds",0), data.optLong("nextHeartbeatSeconds",180)); }
   private JSONObject makeEnvelope(JSONObject p) throws Exception { long ts=System.currentTimeMillis()/1000L; String nonce=UUID.randomUUID().toString().replace("-",""); p.put("ts",ts); String data=hex(rc4(p.toString().getBytes(StandardCharsets.UTF_8), LicenseConfig.RC4_KEY)); String sign=md5(LicenseConfig.APP_ID+ts+nonce+data+LicenseConfig.APP_SECRET); return new JSONObject().put("appId",LicenseConfig.APP_ID).put("ts",ts).put("nonce",nonce).put("data",data).put("sign",sign); }
-  private JSONObject open(JSONObject e) throws Exception { String appId=e.optString("appId"), nonce=e.optString("nonce"), data=e.optString("data"), sign=e.optString("sign"); long ts=e.optLong("ts"); if(!LicenseConfig.APP_ID.equals(appId)) throw new IllegalStateException("App ID 不匹配"); if(Math.abs(System.currentTimeMillis()/1000L-ts)>300) throw new IllegalStateException("服务器时间戳无效"); if(!md5(appId+ts+nonce+data+LicenseConfig.APP_SECRET).equalsIgnoreCase(sign)) throw new IllegalStateException("响应签名错误"); JSONObject p=new JSONObject(new String(rc4(fromHex(data), LicenseConfig.RC4_KEY), StandardCharsets.UTF_8)); if(p.optLong("ts")!=ts) throw new IllegalStateException("响应时间戳不一致"); return p; }
+  private JSONObject open(JSONObject e) throws Exception { String appId=e.optString("appId"), nonce=e.optString("nonce"), data=e.optString("data"), sign=e.optString("sign"); long ts=e.optLong("ts"); if(!LicenseConfig.APP_ID.equals(appId)) throw new IllegalStateException("app id mismatch"); if(Math.abs(System.currentTimeMillis()/1000L-ts)>300) throw new IllegalStateException("server timestamp invalid"); if(!md5(appId+ts+nonce+data+LicenseConfig.APP_SECRET).equalsIgnoreCase(sign)) throw new IllegalStateException("response signature invalid"); JSONObject p=new JSONObject(new String(rc4(fromHex(data), LicenseConfig.RC4_KEY), StandardCharsets.UTF_8)); if(p.optLong("ts")!=ts) throw new IllegalStateException("response timestamp mismatch"); return p; }
   private static String readAll(InputStream in) throws Exception { BufferedReader r=new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8)); StringBuilder b=new StringBuilder(); String l; while((l=r.readLine())!=null)b.append(l); r.close(); return b.toString(); }
   private static String md5(String s) throws Exception { MessageDigest md=MessageDigest.getInstance("MD5"); return hex(md.digest(s.getBytes(StandardCharsets.UTF_8))); }
   private static String hex(byte[] a){ StringBuilder b=new StringBuilder(a.length*2); for(byte x:a)b.append(String.format(Locale.US,"%02x",x&255)); return b.toString(); }
@@ -284,21 +294,22 @@ final class LicenseClient {
 }
 `, "utf8");
   fs.writeFileSync(path.join(dir, "LicenseActivity.java"), `${pkg}
-import android.app.*; import android.os.*; import android.content.*; import android.graphics.Color; import android.graphics.drawable.*; import android.provider.Settings; import android.text.*; import android.view.*; import android.view.inputmethod.*; import android.widget.*;
+import android.app.*; import android.os.*; import android.content.*; import android.graphics.Color; import android.graphics.drawable.*; import android.provider.Settings; import android.view.*; import android.widget.*;
 public class LicenseActivity extends Activity {
-  EditText cardInput; boolean loading=false; boolean formatting=false;
-  public void onCreate(Bundle b){ super.onCreate(b); requestWindowFeature(Window.FEATURE_NO_TITLE); getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE); buildUi(); cardInput.setText(formatCard(getPreferences(0).getString("card",""))); cardInput.setOnEditorActionListener(new TextView.OnEditorActionListener(){ public boolean onEditorAction(TextView v,int actionId,android.view.KeyEvent event){ if(actionId==EditorInfo.IME_ACTION_DONE || (event!=null && event.getKeyCode()==android.view.KeyEvent.KEYCODE_ENTER && event.getAction()==android.view.KeyEvent.ACTION_UP)){ activate(); return true; } return false; }}); cardInput.addTextChangedListener(new TextWatcher(){ public void beforeTextChanged(CharSequence s,int st,int c,int a){} public void onTextChanged(CharSequence s,int st,int b,int c){} public void afterTextChanged(Editable e){ if(formatting) return; String f=formatCard(e.toString()); if(!f.equals(e.toString())){ formatting=true; e.replace(0,e.length(),f); formatting=false; } if(!loading && cleanCard(f).length()>=16) activate(); }}); if(cleanCard(cardInput.getText().toString()).length()>0) heartbeat(); }
-  void buildUi(){ LinearLayout root=new LinearLayout(this); root.setGravity(Gravity.CENTER); root.setOrientation(LinearLayout.VERTICAL); root.setPadding(dp(22),0,dp(22),0); GradientDrawable bg=new GradientDrawable(GradientDrawable.Orientation.TL_BR,new int[]{Color.rgb(7,12,26),Color.rgb(11,29,45),Color.rgb(4,12,19)}); root.setBackground(bg); cardInput=input("XXXX-XXXX-XXXX-XXXX",18); int w=getResources().getDisplayMetrics().widthPixels - dp(44); if(w>dp(440)) w=dp(440); if(w<dp(250)) w=dp(250); LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(w,dp(60)); root.addView(cardInput,lp); setContentView(root,new ViewGroup.LayoutParams(-1,-1)); }
-  EditText input(String h,int sp){ EditText e=new EditText(this); e.setHint(h); e.setSingleLine(true); e.setImeOptions(EditorInfo.IME_ACTION_DONE); e.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS | android.text.InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD); e.setTextColor(Color.rgb(244,255,250)); e.setHintTextColor(Color.rgb(118,143,160)); e.setTextSize(sp); e.setLetterSpacing(0.04f); e.setGravity(Gravity.CENTER); e.setPadding(dp(18),0,dp(18),0); GradientDrawable d=new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT,new int[]{Color.rgb(24,39,60),Color.rgb(22,47,64)}); d.setStroke(dp(1),Color.rgb(81,231,197)); d.setCornerRadius(dp(18)); e.setBackground(d); e.setElevation(dp(12)); return e; }
+  EditText cardInput; TextView statusText; Button button; boolean loading=false;
+  public void onCreate(Bundle b){ super.onCreate(b); requestWindowFeature(Window.FEATURE_NO_TITLE); getWindow().setBackgroundDrawable(new ColorDrawable(Color.rgb(3,14,24))); if(Build.VERSION.SDK_INT>=21){ getWindow().setStatusBarColor(Color.rgb(14,18,35)); getWindow().setNavigationBarColor(Color.rgb(3,14,24)); } getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE); buildUi(); cardInput.setText(getPreferences(0).getString("card","")); button.setOnClickListener(new View.OnClickListener(){ public void onClick(View v){ activate(); }}); if(cardInput.getText().toString().trim().length()>0) heartbeat(); }
+  void buildUi(){ FrameLayout screen=new FrameLayout(this); GradientDrawable bg=new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,new int[]{Color.rgb(14,18,35),Color.rgb(3,14,24)}); screen.setBackground(bg); LinearLayout root=new LinearLayout(this); root.setGravity(Gravity.CENTER); root.setOrientation(LinearLayout.VERTICAL); root.setPadding(dp(22),0,dp(22),0); LinearLayout box=new LinearLayout(this); box.setOrientation(LinearLayout.VERTICAL); box.setPadding(dp(22),dp(22),dp(22),dp(22)); GradientDrawable panel=new GradientDrawable(); panel.setColor(Color.rgb(22,29,47)); panel.setStroke(dp(1),Color.rgb(49,68,90)); panel.setCornerRadius(dp(10)); box.setBackground(panel); TextView title=t("卡密验证",26,Color.rgb(243,255,249),true); cardInput=input("XXXX-XXXX-XXXX-XXXX",18); button=new Button(this); button.setText("验证并进入"); button.setTextColor(Color.rgb(6,18,15)); button.setTextSize(17); button.setAllCaps(false); GradientDrawable bb=new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT,new int[]{Color.rgb(81,231,197),Color.rgb(255,238,97)}); bb.setCornerRadius(dp(10)); button.setBackground(bb); statusText=t("",14,Color.rgb(215,255,245),false); statusText.setVisibility(View.GONE); box.addView(title); add(box,cardInput,24,58); add(box,button,18,60); add(box,statusText,16,-2); int w=getResources().getDisplayMetrics().widthPixels - dp(44); if(w>dp(520)) w=dp(520); if(w<dp(260)) w=dp(260); root.addView(box,new LinearLayout.LayoutParams(w,-2)); screen.addView(root,new FrameLayout.LayoutParams(-1,-1)); addPurchase(screen); setContentView(screen,new ViewGroup.LayoutParams(-1,-1)); }
+  TextView t(String s,int sp,int c,boolean bold){ TextView v=new TextView(this); v.setText(s); v.setTextSize(sp); v.setTextColor(c); if(bold)v.setTypeface(null,1); return v; }
+  EditText input(String h,int sp){ EditText e=new EditText(this); e.setHint(h); e.setSingleLine(true); e.setTextColor(Color.WHITE); e.setHintTextColor(Color.rgb(120,144,156)); e.setTextSize(sp); e.setPadding(dp(14),0,dp(14),0); GradientDrawable d=new GradientDrawable(); d.setColor(Color.rgb(27,40,60)); d.setStroke(dp(1),Color.rgb(48,72,99)); d.setCornerRadius(dp(10)); e.setBackground(d); return e; }
+  void add(LinearLayout box, View v, int top, int height){ LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1, height < 0 ? -2 : dp(height)); lp.topMargin=dp(top); box.addView(v,lp); }
+  void addPurchase(FrameLayout screen){ final String u=LicenseConfig.PURCHASE_URL; if(u==null || u.trim().length()==0) return; TextView buy=t("卡密购买地址",13,Color.rgb(215,255,245),false); buy.setPadding(dp(10),dp(8),dp(10),dp(8)); buy.setOnClickListener(new View.OnClickListener(){ public void onClick(View v){ try { startActivity(new Intent(Intent.ACTION_VIEW, android.net.Uri.parse(u))); } catch(Exception e){ toast("无法打开购买地址"); } }}); FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(-2,-2,Gravity.RIGHT|Gravity.BOTTOM); lp.setMargins(0,0,dp(12),dp(12)); screen.addView(buy,lp); }
   int dp(int v){ return (int)(v*getResources().getDisplayMetrics().density+0.5f); }
-  String cleanCard(String s){ return s==null?"":s.toUpperCase().replaceAll("[^A-Z0-9]",""); }
-  String formatCard(String s){ String c=cleanCard(s); if(c.length()>16)c=c.substring(0,16); StringBuilder b=new StringBuilder(); for(int i=0;i<c.length();i++){ if(i>0 && i%4==0)b.append('-'); b.append(c.charAt(i)); } return b.toString(); }
-  void activate(){ if(loading) return; final String card=formatCard(cardInput.getText().toString()); if(cleanCard(card).length()==0){ toast("请输入卡密"); return; } setLoading(true,null); new Thread(new Runnable(){ public void run(){ try { LicenseResult r=new LicenseClient(LicenseActivity.this).activate(card, deviceId(), LicenseConfig.APP_VERSION); if(r.ok){ getPreferences(0).edit().putString("card",card.toUpperCase()).apply(); runOnUiThread(new Runnable(){ public void run(){ enterMain(); }}); } else { final String msg=r.message; runOnUiThread(new Runnable(){ public void run(){ setLoading(false,"验证失败："+msg); }}); } } catch(final Exception e){ runOnUiThread(new Runnable(){ public void run(){ setLoading(false,"验证失败："+(e.getMessage()==null?"网络验证失败":e.getMessage())); }}); } }}).start(); }
-  void heartbeat(){ setLoading(true,"正在联网验证..."); new Thread(new Runnable(){ public void run(){ try { String card=formatCard(cardInput.getText().toString()); LicenseResult r=new LicenseClient(LicenseActivity.this).heartbeat(card, deviceId(), LicenseConfig.APP_VERSION); if(r.ok) { runOnUiThread(new Runnable(){ public void run(){ enterMain(); }}); } else { final String msg=r.message; runOnUiThread(new Runnable(){ public void run(){ setLoading(false,"验证失败："+msg); }}); } } catch(final Exception e){ runOnUiThread(new Runnable(){ public void run(){ setLoading(false,"验证失败："+(e.getMessage()==null?"心跳验证失败":e.getMessage())); }}); } }}).start(); }
+  void activate(){ if(loading) return; final String card=cardInput.getText().toString().trim(); if(card.length()==0){ setLoading(false,"请输入卡密"); return; } setLoading(true,"验证中..."); new Thread(new Runnable(){ public void run(){ try { LicenseResult r=new LicenseClient(LicenseActivity.this).activate(card, deviceId(), LicenseConfig.APP_VERSION); if(r.ok){ getPreferences(0).edit().putString("card",card.toUpperCase()).apply(); runOnUiThread(new Runnable(){ public void run(){ enterMain(); }}); } else { final String msg=r.message; runOnUiThread(new Runnable(){ public void run(){ setLoading(false,"验证失败：" + msg); }}); } } catch(final Exception e){ runOnUiThread(new Runnable(){ public void run(){ setLoading(false,"验证失败：" + (e.getMessage()==null?"网络验证失败":e.getMessage())); }}); } }}).start(); }
+  void heartbeat(){ setLoading(true,"正在验证..."); new Thread(new Runnable(){ public void run(){ try { String card=cardInput.getText().toString().trim(); LicenseResult r=new LicenseClient(LicenseActivity.this).heartbeat(card, deviceId(), LicenseConfig.APP_VERSION); if(r.ok) { runOnUiThread(new Runnable(){ public void run(){ enterMain(); }}); } else { final String msg=r.message; runOnUiThread(new Runnable(){ public void run(){ setLoading(false,"验证失败：" + msg); }}); } } catch(final Exception e){ runOnUiThread(new Runnable(){ public void run(){ setLoading(false,"验证失败：" + (e.getMessage()==null?"心跳验证失败":e.getMessage())); }}); } }}).start(); }
   String deviceId(){ String id=Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID); return id==null||id.trim().length()==0?"unknown-device":id; }
-  void setLoading(boolean l,String m){ loading=l; cardInput.setEnabled(!l); if(m!=null && m.length()>0) toast(m); }
+  void setLoading(boolean l,String m){ loading=l; cardInput.setEnabled(!l); button.setEnabled(!l); statusText.setText(m == null ? "" : m); statusText.setVisibility(m == null || m.length()==0 ? View.GONE : View.VISIBLE); }
   void toast(String m){ Toast.makeText(this,m,Toast.LENGTH_SHORT).show(); }
-  void enterMain(){ try { startActivity(new Intent(this, Class.forName("${javaString(launcher)}"))); finish(); } catch(Exception e){ setLoading(false,"原启动页打开失败："+e.getMessage()); } }
+  void enterMain(){ try { startActivity(new Intent(this, Class.forName("${javaString(launcher)}"))); finish(); } catch(Exception e){ setLoading(false,"原启动页打开失败：" + e.getMessage()); } }
 }
 `, "utf8");
 }
@@ -436,19 +447,20 @@ function corsHeaders() {
 }
 
 function page() {
-  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>APK 验证框一键工具</title><style>
+  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>APK 楠岃瘉妗嗕竴閿伐鍏?/title><style>
 body{margin:0;background:#f5f7fb;color:#172033;font-family:Arial,"Microsoft YaHei",sans-serif}.wrap{max-width:980px;margin:auto;padding:24px}.panel{background:white;border:1px solid #dde4ef;border-radius:8px;padding:18px;margin-top:14px}.drop{border:2px dashed #8aa4c4;border-radius:8px;padding:34px;text-align:center;background:#f8fbff}.drop.drag{background:#eaf4ff}input{width:100%;height:38px;border:1px solid #dde4ef;border-radius:6px;padding:8px;box-sizing:border-box}button{height:40px;border:0;border-radius:6px;background:#1769aa;color:white;font-weight:700;padding:0 14px}.muted{color:#667085}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}.status{white-space:pre-wrap;background:#111827;color:#d7fff5;padding:14px;border-radius:8px;min-height:120px}@media(max-width:760px){.row{grid-template-columns:1fr}}</style></head><body><main class="wrap">
-<h1>统一验证后台 · APK 保护</h1><p class="muted">把已经编译好的 APK 拖进来，本机自动加入卡密窗口、心跳、MD5 签名、RC4 加密和时间戳校验，再混淆验证模块并重新签名。</p><p><a href="${DEFAULT_SERVER}" target="_blank">打开卡密管理后台</a></p><p id="access" class="muted">正在读取手机访问地址...</p>
-<section class="panel"><div id="drop" class="drop"><b>拖拽 APK 到这里</b><p class="muted">或点击选择 APK 文件</p><input id="file" type="file" accept=".apk" style="display:none"></div></section>
-<section class="panel"><div class="row"><label>统一后台地址<input id="server" value="${DEFAULT_SERVER}"></label><label>App ID<input id="appId" value="demo_android_app"></label><label>App Secret<input id="secret" type="password" value="change_this_app_secret"></label><label>RC4 Key<input id="rc4" type="password" value="change_this_rc4_key"></label></div><p><label><input id="obfuscate" type="checkbox" checked> 使用 R8 混淆新加入的验证模块</label></p><p><label><input id="vmp" type="checkbox"> 处理完成后调用 VMP 壳</label></p><button id="start" disabled>一键加入验证并保护 APK</button></section>
-<section class="panel"><h2>状态</h2><div id="status" class="status">等待 APK...</div><p id="download"></p></section>
-<section class="panel"><h2>VMP 壳工具位置</h2><p class="muted">把你的 VMP 加固工具放到：<b>${ROOT.replace(/\\/g, "\\\\")}\\\\tools\\\\vmp\\\\packer.bat</b>。脚本需要支持两个参数：输入 APK、输出 APK。</p></section>
+<h1>缁熶竴楠岃瘉鍚庡彴 路 APK 淇濇姢</h1><p class="muted">鎶婂凡缁忕紪璇戝ソ鐨?APK 鎷栬繘鏉ワ紝鏈満鑷姩鍔犲叆鍗″瘑绐楀彛銆佸績璺炽€丮D5 绛惧悕銆丷C4 鍔犲瘑鍜屾椂闂存埑鏍￠獙锛屽啀娣锋穯楠岃瘉妯″潡骞堕噸鏂扮鍚嶃€?/p><p><a href="${DEFAULT_SERVER}" target="_blank">鎵撳紑鍗″瘑绠＄悊鍚庡彴</a></p><p id="access" class="muted">姝ｅ湪璇诲彇鎵嬫満璁块棶鍦板潃...</p>
+<section class="panel"><div id="drop" class="drop"><b>鎷栨嫿 APK 鍒拌繖閲?/b><p class="muted">鎴栫偣鍑婚€夋嫨 APK 鏂囦欢</p><input id="file" type="file" accept=".apk" style="display:none"></div></section>
+<section class="panel"><div class="row"><label>缁熶竴鍚庡彴鍦板潃<input id="server" value="${DEFAULT_SERVER}"></label><label>鍗″瘑璐拱鍦板潃<input id="purchaseUrl" placeholder="涓嶅～鍒?APK 涓嶆樉绀鸿喘涔板叆鍙?></label><label>App ID<input id="appId" value="demo_android_app"></label><label>App Secret<input id="secret" type="password" value="change_this_app_secret"></label><label>RC4 Key<input id="rc4" type="password" value="change_this_rc4_key"></label></div><p><label><input id="obfuscate" type="checkbox" checked> 浣跨敤 R8 娣锋穯鏂板姞鍏ョ殑楠岃瘉妯″潡</label></p><p><label><input id="vmp" type="checkbox"> 澶勭悊瀹屾垚鍚庤皟鐢?VMP 澹?/label></p><button id="start" disabled>涓€閿姞鍏ラ獙璇佸苟淇濇姢 APK</button></section>
+<section class="panel"><h2>鐘舵€?/h2><div id="status" class="status">绛夊緟 APK...</div><p id="download"></p></section>
+<section class="panel"><h2>VMP 澹冲伐鍏蜂綅缃?/h2><p class="muted">鎶婁綘鐨?VMP 鍔犲浐宸ュ叿鏀惧埌锛?b>${ROOT.replace(/\\/g, "\\\\")}\\\\tools\\\\vmp\\\\packer.bat</b>銆傝剼鏈渶瑕佹敮鎸佷袱涓弬鏁帮細杈撳叆 APK銆佽緭鍑?APK銆?/p></section>
 </main><script>
 let selected=null; const drop=document.getElementById('drop'), file=document.getElementById('file'), start=document.getElementById('start'), statusBox=document.getElementById('status'), dl=document.getElementById('download');
 drop.onclick=()=>file.click(); file.onchange=()=>setFile(file.files[0]); drop.ondragover=e=>{e.preventDefault();drop.classList.add('drag')}; drop.ondragleave=()=>drop.classList.remove('drag'); drop.ondrop=e=>{e.preventDefault();drop.classList.remove('drag');setFile(e.dataTransfer.files[0])};
-function setFile(f){ if(!f||!f.name.toLowerCase().endsWith('.apk')) return log('请选择 APK 文件'); selected=f; start.disabled=false; log('已选择：'+f.name+'\\n点击开始处理'); }
+function setFile(f){ if(!f||!f.name.toLowerCase().endsWith('.apk')) return log('璇烽€夋嫨 APK 鏂囦欢'); selected=f; start.disabled=false; log('宸查€夋嫨锛?+f.name+'\\n鐐瑰嚮寮€濮嬪鐞?); }
 function log(t){ statusBox.textContent=t; }
-start.onclick=async()=>{ if(!selected)return; start.disabled=true; dl.innerHTML=''; log('正在本机处理 APK...\\n正在加入验证窗口和安全校验，请稍等。'); const qs=new URLSearchParams({fileName:selected.name,serverUrl:server.value,appId:appId.value,appSecret:secret.value,rc4Key:rc4.value,obfuscate:obfuscate.checked?'1':'0',vmp:vmp.checked?'1':'0'}); try{ const r=await fetch('/api/process?'+qs,{method:'POST',body:selected}); const b=await r.json(); if(!b.ok)throw new Error(b.message); log('处理完成\\n包名：'+b.packageName+'\\n原启动页：'+b.launcher+'\\n统一后台：'+b.serverUrl+'\\n安全传输：心跳 + MD5 + RC4 + 时间戳\\n'+b.obfuscationMessage+'\\n'+b.vmpMessage); dl.innerHTML='<a href="'+b.file+'">下载 '+b.fileName+'</a>'; }catch(e){ log('处理失败：\\n'+e.message); } finally{ start.disabled=false; } };
-fetch('/api/status').then(r=>r.json()).then(b=>{ if(!b.ok)return; console.log(b.tools); const phone=(b.accessUrls||[]).filter(x=>!x.includes('127.0.0.1')); access.textContent=phone.length?'安卓手机与电脑连接同一 Wi-Fi 后打开：'+phone.join(' 或 '):'电脑访问：http://127.0.0.1:${PORT}'; });
+start.onclick=async()=>{ if(!selected)return; start.disabled=true; dl.innerHTML=''; log('姝ｅ湪鏈満澶勭悊 APK...\\n姝ｅ湪鍔犲叆楠岃瘉绐楀彛鍜屽畨鍏ㄦ牎楠岋紝璇风◢绛夈€?); const qs=new URLSearchParams({fileName:selected.name,serverUrl:server.value,purchaseUrl:purchaseUrl.value,appId:appId.value,appSecret:secret.value,rc4Key:rc4.value,obfuscate:obfuscate.checked?'1':'0',vmp:vmp.checked?'1':'0'}); try{ const r=await fetch('/api/process?'+qs,{method:'POST',body:selected}); const b=await r.json(); if(!b.ok)throw new Error(b.message); log('澶勭悊瀹屾垚\\n鍖呭悕锛?+b.packageName+'\\n鍘熷惎鍔ㄩ〉锛?+b.launcher+'\\n缁熶竴鍚庡彴锛?+b.serverUrl+'\\n瀹夊叏浼犺緭锛氬績璺?+ MD5 + RC4 + 鏃堕棿鎴砛\n'+b.obfuscationMessage+'\\n'+b.vmpMessage); dl.innerHTML='<a href="'+b.file+'">涓嬭浇 '+b.fileName+'</a>'; }catch(e){ log('澶勭悊澶辫触锛歕\n'+e.message); } finally{ start.disabled=false; } };
+fetch('/api/status').then(r=>r.json()).then(b=>{ if(!b.ok)return; console.log(b.tools); const phone=(b.accessUrls||[]).filter(x=>!x.includes('127.0.0.1')); access.textContent=phone.length?'瀹夊崜鎵嬫満涓庣數鑴戣繛鎺ュ悓涓€ Wi-Fi 鍚庢墦寮€锛?+phone.join(' 鎴?'):'鐢佃剳璁块棶锛歨ttp://127.0.0.1:${PORT}'; });
 </script></body></html>`;
 }
+
