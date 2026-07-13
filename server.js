@@ -45,6 +45,7 @@ async function processUpload(req, res, url) {
   const appId = url.searchParams.get("appId") || "demo_android_app";
   const appSecret = url.searchParams.get("appSecret") || "change_this_app_secret";
   const rc4Key = url.searchParams.get("rc4Key") || "change_this_rc4_key";
+  const cardName = normalizeCardName(url.searchParams.get("cardName") || "默认软件");
   const purchaseUrl = normalizeOptionalUrl(url.searchParams.get("purchaseUrl") || "");
   const jumpText = normalizeOptionalText(url.searchParams.get("jumpText") || "");
   const jumpUrl = normalizeOptionalUrl(url.searchParams.get("jumpUrl") || "");
@@ -77,7 +78,7 @@ async function processUpload(req, res, url) {
   manifest = addLicenseActivity(manifest);
   fs.writeFileSync(manifestPath, manifest, "utf8");
 
-  writeJavaSources(javaDir, packageName, launcher, serverUrl, appId, appSecret, rc4Key, purchaseUrl, jumpText, jumpUrl);
+  writeJavaSources(javaDir, packageName, launcher, serverUrl, appId, appSecret, rc4Key, cardName, purchaseUrl, jumpText, jumpUrl);
   fs.mkdirSync(classesDir, { recursive: true });
   const javaFiles = listFiles(javaDir).filter((f) => f.endsWith(".java"));
   await run(tools.javac, ["-encoding", "UTF-8", "-source", "8", "-target", "8", "-bootclasspath", tools.androidJar, "-d", classesDir, ...javaFiles], jobDir);
@@ -140,6 +141,7 @@ async function processUpload(req, res, url) {
     packageName,
     launcher,
     serverUrl,
+    cardName,
     purchaseUrl,
     jumpText,
     jumpUrl,
@@ -255,7 +257,11 @@ function normalizeOptionalText(value) {
   return (value || "").trim().replace(/\s+/g, " ").slice(0, 32);
 }
 
-function writeJavaSources(root, packageName, launcher, serverUrl, appId, appSecret, rc4Key, purchaseUrl, jumpText, jumpUrl) {
+function normalizeCardName(value) {
+  return (value || "默认软件").trim().replace(/\s+/g, " ").slice(0, 48) || "默认软件";
+}
+
+function writeJavaSources(root, packageName, launcher, serverUrl, appId, appSecret, rc4Key, cardName, purchaseUrl, jumpText, jumpUrl) {
   const dir = path.join(root, ...packageName.split("."));
   fs.mkdirSync(dir, { recursive: true });
   const pkg = `package ${packageName};`;
@@ -274,6 +280,7 @@ final class LicenseConfig {
   static final String APP_ID = "${javaString(appId)}";
   static final String APP_SECRET = "${javaString(appSecret)}";
   static final String RC4_KEY = "${javaString(rc4Key)}";
+  static final String CARD_NAME = "${javaString(cardName)}";
   static final String PURCHASE_URL = "${javaString(purchaseUrl)}";
   static final String JUMP_TEXT = "${javaString(jumpText)}";
   static final String JUMP_URL = "${javaString(jumpUrl)}";
@@ -290,8 +297,8 @@ final class LicenseConfig {
 import android.content.*; import org.json.*; import java.io.*; import java.net.*; import java.nio.charset.*; import java.security.*; import java.util.*;
 final class LicenseClient {
   private final Context context; LicenseClient(Context c){ context = c.getApplicationContext(); }
-  LicenseResult activate(String cardKey, String deviceId, String appVersion) throws Exception { JSONObject p = new JSONObject().put("cardKey",cardKey).put("deviceId",deviceId).put("appVersion",appVersion); return request("/api/activate", p); }
-  LicenseResult heartbeat(String cardKey, String deviceId, String appVersion) throws Exception { JSONObject p = new JSONObject().put("cardKey",cardKey).put("deviceId",deviceId).put("appVersion",appVersion); return request("/api/heartbeat", p); }
+  LicenseResult activate(String cardKey, String deviceId, String appVersion) throws Exception { JSONObject p = new JSONObject().put("cardKey",cardKey).put("cardName",LicenseConfig.CARD_NAME).put("deviceId",deviceId).put("appVersion",appVersion); return request("/api/activate", p); }
+  LicenseResult heartbeat(String cardKey, String deviceId, String appVersion) throws Exception { JSONObject p = new JSONObject().put("cardKey",cardKey).put("cardName",LicenseConfig.CARD_NAME).put("deviceId",deviceId).put("appVersion",appVersion); return request("/api/heartbeat", p); }
   private LicenseResult request(String path, JSONObject payload) throws Exception { JSONObject env = makeEnvelope(payload); Exception last = null; for(String base: LicenseConfig.getBaseUrls(context)){ try { return once(base, path, env); } catch(Exception e){ last = e; } } throw last == null ? new IllegalStateException("network verify failed") : last; }
   private LicenseResult once(String base, String path, JSONObject env) throws Exception { HttpURLConnection c=(HttpURLConnection)new URL(base+path).openConnection(); c.setRequestMethod("POST"); c.setConnectTimeout(20000); c.setReadTimeout(20000); c.setDoOutput(true); c.setRequestProperty("Content-Type","application/json; charset=utf-8"); OutputStream o=c.getOutputStream(); o.write(env.toString().getBytes(StandardCharsets.UTF_8)); o.close(); InputStream in=c.getResponseCode()>=400?c.getErrorStream():c.getInputStream(); JSONObject data = open(new JSONObject(readAll(in))); return new LicenseResult(data.optBoolean("ok",false), data.optInt("code",-1), data.optString("message",""), data.optLong("expiresAt",0), data.optLong("remainingSeconds",0), data.optLong("nextHeartbeatSeconds",180)); }
   private JSONObject makeEnvelope(JSONObject p) throws Exception { long ts=System.currentTimeMillis()/1000L; String nonce=UUID.randomUUID().toString().replace("-",""); p.put("ts",ts); String data=hex(rc4(p.toString().getBytes(StandardCharsets.UTF_8), LicenseConfig.RC4_KEY)); String sign=md5(LicenseConfig.APP_ID+ts+nonce+data+LicenseConfig.APP_SECRET); return new JSONObject().put("appId",LicenseConfig.APP_ID).put("ts",ts).put("nonce",nonce).put("data",data).put("sign",sign); }
