@@ -1,0 +1,91 @@
+name: Build lsdriver Android kernel matrix
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - version: '5.10'
+            branch: android12-5.10
+          - version: '5.15'
+            branch: android13-5.15
+          - version: '6.1'
+            branch: android14-6.1
+          - version: '6.6'
+            branch: android15-6.6
+          - version: '6.12'
+            branch: android16-6.12
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install kernel build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            bc bison build-essential clang-14 cpio dwarves flex \
+            gcc-aarch64-linux-gnu libelf-dev libssl-dev lld-14 rsync
+
+      - name: Fetch kernel source
+        env:
+          KERNEL_BRANCH: ${{ matrix.branch }}
+        run: |
+          git clone --depth 1 --branch "$KERNEL_BRANCH" \
+            https://android.googlesource.com/kernel/common \
+            "$RUNNER_TEMP/kernel"
+
+      - name: Prepare Kbuild and compile module
+        env:
+          VERSION: ${{ matrix.version }}
+          DRIVER_ARCHIVE: ${{ github.workspace }}/artifacts/lsdriver-touch-slot-hijack-20260807-rooted-v2.tar.gz
+        run: |
+          set -euo pipefail
+          export PATH="/usr/lib/llvm-14/bin:$PATH"
+          SRC="$RUNNER_TEMP/kernel"
+          OUT="$RUNNER_TEMP/out"
+          WORK="$RUNNER_TEMP/lsdriver"
+          test -f "$DRIVER_ARCHIVE"
+          test -f "$SRC/Makefile"
+          mkdir -p "$WORK"
+          tar -xzf "$DRIVER_ARCHIVE" --strip-components=1 -C "$WORK"
+          test -f "$WORK/touch_inject.c"
+          grep -q '#define DEFAULT_ORIGINAL_SLOTS 10' "$WORK/touch_inject.c"
+          grep -q 'mt->num_slots = physical_slots' "$WORK/touch_inject.c"
+          ! grep -q 'input_allocate_device' "$WORK/touch_inject.c"
+
+          MAKE_ARGS=(ARCH=arm64 LLVM=1 LLVM_IAS=1 CROSS_COMPILE=aarch64-linux-gnu- CLANG_TRIPLE=aarch64-linux-gnu-)
+          make -C "$SRC" O="$OUT" "${MAKE_ARGS[@]}" gki_defconfig
+          "$SRC/scripts/config" --file "$OUT/.config" --disable DEBUG_INFO_BTF || true
+          "$SRC/scripts/config" --file "$OUT/.config" --disable DEBUG_INFO_DWARF4 || true
+          "$SRC/scripts/config" --file "$OUT/.config" --disable DEBUG_INFO_DWARF5 || true
+          make -C "$SRC" O="$OUT" "${MAKE_ARGS[@]}" olddefconfig
+          make -C "$SRC" O="$OUT" "${MAKE_ARGS[@]}" -j2 modules_prepare
+          make -C "$SRC" O="$OUT" M="$WORK" "${MAKE_ARGS[@]}" \
+            KBUILD_MODPOST_WARN=1 -j2 modules
+
+          test -f "$WORK/lsdriver.ko"
+          actual=$(tr -d '\r\n' < "$OUT/include/config/kernel.release")
+          case "$actual" in
+            "$VERSION".*) ;;
+            *) echo "unexpected kernel release: $actual" >&2; exit 1 ;;
+          esac
+          mkdir -p "$RUNNER_TEMP/artifact"
+          cp "$WORK/lsdriver.ko" "$RUNNER_TEMP/artifact/lsdriver-$VERSION.ko"
+          printf '%s\n' "$actual" > "$RUNNER_TEMP/artifact/kernel.release"
+          sha256sum "$RUNNER_TEMP/artifact/lsdriver-$VERSION.ko" \
+            > "$RUNNER_TEMP/artifact/SHA256SUMS.txt"
+
+      - name: Upload module
+        uses: actions/upload-artifact@v4
+        with:
+          name: lsdriver-${{ matrix.version }}
+          path: ${{ runner.temp }}/artifact
+          if-no-files-found: error
