@@ -1,0 +1,136 @@
+name: Build lsdriver five-kernel matrix in prepared container
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_image:
+        description: 'Prepared image containing the five kernel trees, prepared KOUTs, and Android clang'
+        required: true
+        type: string
+      image_digest:
+        description: 'Optional immutable image digest, for example sha256:...'
+        required: false
+        type: string
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - version: '5.10'
+            tree: '5_10'
+            expected_release: '5.10.245'
+          - version: '5.15'
+            tree: '5_15'
+            expected_release: '5.15.194'
+          - version: '6.1'
+            tree: '6_1'
+            expected_release: '6.1.155'
+          - version: '6.6'
+            tree: '6_6'
+            expected_release: '6.6.111-4k'
+          - version: '6.12'
+            tree: '6_12'
+            expected_release: '6.12.52-4k'
+    env:
+      DRIVER_ARCHIVE_HOST: ${{ github.workspace }}/artifacts/lsdriver-touch-slot-hijack-20260807-rooted-v2.tar.gz
+      DRIVER_ARCHIVE_CONTAINER: /src/artifacts/lsdriver-touch-slot-hijack-20260807-rooted-v2.tar.gz
+
+    steps:
+      - name: Checkout driver source
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GHCR
+        if: startsWith(inputs.build_image, 'ghcr.io/')
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check or obtain prepared image
+        id: image
+        env:
+          BUILD_IMAGE: ${{ inputs.build_image }}
+          IMAGE_DIGEST: ${{ inputs.image_digest }}
+        run: |
+          set -euo pipefail
+          test -n "$BUILD_IMAGE"
+          REF="$BUILD_IMAGE"
+          if [ -n "$IMAGE_DIGEST" ]; then
+            REF="${BUILD_IMAGE}@${IMAGE_DIGEST}"
+          fi
+          # Hosted runners may already have the image cached. A pull is only
+          # needed when the requested image is not present on that runner.
+          if ! docker image inspect "$REF" >/dev/null 2>&1; then
+            docker pull "$REF"
+          fi
+          docker image inspect "$REF" >/dev/null
+          echo "ref=$REF" >> "$GITHUB_OUTPUT"
+
+      - name: Build module with network disabled
+        env:
+          IMAGE_REF: ${{ steps.image.outputs.ref }}
+          VERSION: ${{ matrix.version }}
+          TREE: ${{ matrix.tree }}
+          EXPECTED_RELEASE: ${{ matrix.expected_release }}
+        run: |
+          set -euo pipefail
+          test -f "$DRIVER_ARCHIVE_HOST"
+          mkdir -p "$RUNNER_TEMP/out"
+          docker run --rm --network none --user 0 \
+            -e EXPECTED_RELEASE="$EXPECTED_RELEASE" \
+            -e VERSION="$VERSION" \
+            -e TREE="$TREE" \
+            -e DRIVER_ARCHIVE="$DRIVER_ARCHIVE_CONTAINER" \
+            -v "$GITHUB_WORKSPACE:/src:ro" \
+            -v "$RUNNER_TEMP/out:/out" \
+            "$IMAGE_REF" /bin/bash -lc '
+              set -euo pipefail
+              SRC="/opt/codex-kbuild/src/$TREE"
+              KOUT="/opt/codex-kbuild/out/$TREE"
+              test -d "$SRC"
+              test -d "$KOUT"
+              test -f "$SRC/Makefile"
+              test -f "$KOUT/Module.symvers"
+              test -f "$KOUT/include/config/kernel.release"
+              test -f "$DRIVER_ARCHIVE"
+              actual=$(tr -d "\r\n" < "$KOUT/include/config/kernel.release")
+              test "$actual" = "$EXPECTED_RELEASE"
+              command -v clang >/dev/null
+
+              work="/tmp/lsdriver-$VERSION"
+              rm -rf "$work"
+              mkdir -p "$work"
+              tar -xzf "$DRIVER_ARCHIVE" --strip-components=1 -C "$work"
+              test -f "$work/touch_inject.c"
+              test -f "$work/touch_inject.h"
+              grep -q '#define DEFAULT_ORIGINAL_SLOTS 10' "$work/touch_inject.c"
+              grep -q 'mt->num_slots = physical_slots' "$work/touch_inject.c"
+              ! grep -q 'input_allocate_device' "$work/touch_inject.c"
+              extra=()
+              if test -f "$KOUT/vmlinux.symvers"; then
+                awk '\''NR==FNR { seen[$2]=1; next } !seen[$2]'\'' \
+                  "$KOUT/Module.symvers" "$KOUT/vmlinux.symvers" \
+                  > "$work/vmlinux-extra.symvers"
+                extra+=("KBUILD_EXTRA_SYMBOLS=$work/vmlinux-extra.symvers")
+              fi
+              make -C "$SRC" O="$KOUT" M="$work" ARCH=arm64 LLVM=1 LLVM_IAS=1 \
+                KBUILD_MODPOST_WARN=1 -j"$(nproc)" "${extra[@]}" modules
+              test -f "$work/lsdriver.ko"
+              cp "$work/lsdriver.ko" "/out/lsdriver-$VERSION.ko"
+              printf "%s\n" "$actual" > /out/kernel.release
+              sha256sum "/out/lsdriver-$VERSION.ko" > /out/SHA256SUMS.txt
+            '
+
+      - name: Upload module
+        uses: actions/upload-artifact@v4
+        with:
+          name: lsdriver-${{ matrix.version }}
+          path: ${{ runner.temp }}/out
+          if-no-files-found: error
