@@ -25,7 +25,7 @@ jobs:
           set -euo pipefail
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
-            bc bison flex libelf-dev libssl-dev dwarves
+            bc bison flex libelf-dev libssl-dev dwarves lld
           clang --version | head -n 2
           ld.lld --version | head -n 1
 
