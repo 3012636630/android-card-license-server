@@ -54,7 +54,8 @@ jobs:
           grep -q '^CONFIG_MODULES=y' "$OUT/.config"
           grep -q '^CONFIG_MODVERSIONS=y' "$OUT/.config"
           make -C "$SRC" O="$OUT" "${MAKE_ARGS[@]}" -j2 modules_prepare
-          actual=$(make -s -C "$SRC" O="$OUT" "${MAKE_ARGS[@]}" kernelrelease)
+          actual=$(tr -d '\r\n' < "$OUT/include/config/kernel.release")
+          printf 'actual kernel release: %s\n' "$actual"
           test "$actual" = "$TARGET_RELEASE"
           printf '%s\n' "$actual" | tee "$RUNNER_TEMP/kernel.release"
 
