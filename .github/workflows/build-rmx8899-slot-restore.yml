@@ -45,7 +45,7 @@ jobs:
           set -euo pipefail
           SRC="$RUNNER_TEMP/kernel"
           OUT="$RUNNER_TEMP/kout"
-          MAKE_ARGS=(ARCH=arm64 LLVM=1 LLVM_IAS=1)
+          MAKE_ARGS=(ARCH=arm64 LLVM=1 LLVM_IAS=1 LOCALVERSION=)
           : > "$SRC/.scmversion"
           make -C "$SRC" O="$OUT" "${MAKE_ARGS[@]}" gki_defconfig
           "$SRC/scripts/config" --file "$OUT/.config" \
