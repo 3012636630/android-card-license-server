@@ -25,9 +25,10 @@ jobs:
           set -euo pipefail
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
-            bc bison flex libelf-dev libssl-dev dwarves lld
+            bc bison flex libelf-dev libssl-dev dwarves lld llvm
           clang --version | head -n 2
           ld.lld --version | head -n 1
+          llvm-ar --version | head -n 1
 
       - name: Fetch official RMX8899 AndroidB common source
         run: |
