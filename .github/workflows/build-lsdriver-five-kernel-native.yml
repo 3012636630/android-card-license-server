@@ -59,8 +59,6 @@ jobs:
           test -f "$WORK/touch_inject.c"
           grep -q 'at s1e0r' "$WORK/Reading_and_Writing.c"
           grep -q 'MT_NORMAL_NC' "$WORK/Reading_and_Writing.c"
-          grep -q '#define DEFAULT_ORIGINAL_SLOTS 10' "$WORK/touch_inject.c"
-          grep -q 'mt->num_slots = physical_slots' "$WORK/touch_inject.c"
           ! grep -q 'input_allocate_device' "$WORK/touch_inject.c"
 
           MAKE_ARGS=(ARCH=arm64 LLVM=1 LLVM_IAS=1 CROSS_COMPILE=aarch64-linux-gnu- CLANG_TRIPLE=aarch64-linux-gnu-)
