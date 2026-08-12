@@ -1,4 +1,4 @@
-name: Build lsdriver Android kernel matrix
+name: Build lsdriver read path Android kernel matrix
 
 on:
   workflow_dispatch:
@@ -56,10 +56,49 @@ jobs:
           test -f "$SRC/Makefile"
           mkdir -p "$WORK"
           tar -xzf "$DRIVER_ARCHIVE" --strip-components=1 -C "$WORK"
-          test -f "$WORK/touch_inject.c"
           grep -q 'at s1e0r' "$WORK/Reading_and_Writing.c"
           grep -q 'MT_NORMAL_NC' "$WORK/Reading_and_Writing.c"
-          ! grep -q 'input_allocate_device' "$WORK/touch_inject.c"
+          ! grep -q 'get_user_pages_remote' "$WORK/Reading_and_Writing.c"
+          ! grep -q 'follow_page' "$WORK/Reading_and_Writing.c"
+
+          cat > "$WORK/read_compat_main.c" <<'EOF'
+          #include <linux/kprobes.h>
+          #include <linux/module.h>
+          #include "Reading_and_Writing.h"
+
+          unsigned long resolve_unexported_symbol(const char *name)
+          {
+              struct kprobe kp = { .symbol_name = name };
+              unsigned long addr = 0;
+
+              if (!register_kprobe(&kp)) {
+                  addr = (unsigned long)kp.addr;
+                  unregister_kprobe(&kp);
+              }
+              return addr;
+          }
+
+          static int __init lsread_compat_init(void)
+          {
+              return ls_remote_read_init();
+          }
+
+          static void __exit lsread_compat_exit(void)
+          {
+              ls_remote_read_exit();
+          }
+
+          module_init(lsread_compat_init);
+          module_exit(lsread_compat_exit);
+          MODULE_LICENSE("GPL");
+          EOF
+          cat > "$WORK/Makefile" <<'EOF'
+          obj-m += lsread_compat.o
+          lsread_compat-y := read_compat_main.o Reading_and_Writing.o
+          ccflags-y += -mbranch-protection=none
+          ccflags-y += -mno-outline-atomics
+          ccflags-y += -Wno-error
+          EOF
 
           MAKE_ARGS=(ARCH=arm64 LLVM=1 LLVM_IAS=1 CROSS_COMPILE=aarch64-linux-gnu- CLANG_TRIPLE=aarch64-linux-gnu-)
           make -C "$SRC" O="$OUT" "${MAKE_ARGS[@]}" gki_defconfig
@@ -71,21 +110,22 @@ jobs:
           make -C "$SRC" O="$OUT" M="$WORK" "${MAKE_ARGS[@]}" \
             KBUILD_MODPOST_WARN=1 -j2 modules
 
-          test -f "$WORK/lsdriver.ko"
+          test -f "$WORK/lsread_compat.ko"
           actual=$(tr -d '\r\n' < "$OUT/include/config/kernel.release")
           case "$actual" in
             "$VERSION".*) ;;
             *) echo "unexpected kernel release: $actual" >&2; exit 1 ;;
           esac
           mkdir -p "$RUNNER_TEMP/artifact"
-          cp "$WORK/lsdriver.ko" "$RUNNER_TEMP/artifact/lsdriver-$VERSION.ko"
+          cp "$WORK/lsread_compat.ko" \
+            "$RUNNER_TEMP/artifact/lsread-compat-$VERSION.ko"
           printf '%s\n' "$actual" > "$RUNNER_TEMP/artifact/kernel.release"
-          sha256sum "$RUNNER_TEMP/artifact/lsdriver-$VERSION.ko" \
+          sha256sum "$RUNNER_TEMP/artifact/lsread-compat-$VERSION.ko" \
             > "$RUNNER_TEMP/artifact/SHA256SUMS.txt"
 
       - name: Upload module
         uses: actions/upload-artifact@v4
         with:
-          name: lsdriver-${{ matrix.version }}
+          name: lsread-compat-${{ matrix.version }}
           path: ${{ runner.temp }}/artifact
           if-no-files-found: error
