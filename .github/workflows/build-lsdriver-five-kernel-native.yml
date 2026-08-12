@@ -45,7 +45,7 @@ jobs:
       - name: Prepare Kbuild and compile module
         env:
           VERSION: ${{ matrix.version }}
-          DRIVER_ARCHIVE: ${{ github.workspace }}/artifacts/lsdriver-touch-slot-hijack-20260807-rooted-v2.tar.gz
+          DRIVER_ARCHIVE: ${{ github.workspace }}/artifacts/lsdriver-rmx8899-slot-restore-src.tar.gz
         run: |
           set -euo pipefail
           export PATH="/usr/lib/llvm-14/bin:$PATH"
@@ -57,6 +57,8 @@ jobs:
           mkdir -p "$WORK"
           tar -xzf "$DRIVER_ARCHIVE" --strip-components=1 -C "$WORK"
           test -f "$WORK/touch_inject.c"
+          grep -q 'at s1e0r' "$WORK/Reading_and_Writing.c"
+          grep -q 'MT_NORMAL_NC' "$WORK/Reading_and_Writing.c"
           grep -q '#define DEFAULT_ORIGINAL_SLOTS 10' "$WORK/touch_inject.c"
           grep -q 'mt->num_slots = physical_slots' "$WORK/touch_inject.c"
           ! grep -q 'input_allocate_device' "$WORK/touch_inject.c"
