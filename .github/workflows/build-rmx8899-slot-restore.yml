@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -112,3 +112,26 @@ jobs:
           name: lsdriver-rmx8899-slot-restore
           path: ${{ runner.temp }}/artifact
           if-no-files-found: error
+
+      - name: Publish fixed NC read prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG=nc-read-latest
+          ARTIFACT="$RUNNER_TEMP/artifact"
+          git tag -f "$TAG" "$GITHUB_SHA"
+          git push origin "refs/tags/$TAG" --force
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --prerelease \
+              --title "NC read latest" \
+              --notes "Built from $GITHUB_SHA by Actions run $GITHUB_RUN_ID."
+          else
+            gh release create "$TAG" --verify-tag --prerelease \
+              --title "NC read latest" \
+              --notes "Built from $GITHUB_SHA by Actions run $GITHUB_RUN_ID."
+          fi
+          gh release upload "$TAG" "$ARTIFACT"/* --clobber
+          printf 'Public KO: %s\n' \
+            "https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/lsdriver-rmx8899-slot-restore-crcfix.ko" \
+            >> "$GITHUB_STEP_SUMMARY"
