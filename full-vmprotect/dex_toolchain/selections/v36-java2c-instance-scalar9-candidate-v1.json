@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "required_methods": [
+    "Lcom/example/android_wz/AutoActionController;->clearFiredWindow()V",
+    "Lcom/example/android_wz/AutoActionController;->markAttempted(J)V",
+    "Lcom/example/android_wz/AutoActionForegroundGate;->maxSampleGapNs()J",
+    "Lcom/example/android_wz/AutoActionGameplayGate;->reset()V",
+    "Lcom/example/android_wz/DriverAimController;->clearReleaseOnlyPlan()V",
+    "Lcom/example/android_wz/DriverAimController;->finishPulse(J)V",
+    "Lcom/example/android_wz/ESPView$MotionFrame;->projectionAlpha(J)F",
+    "Lcom/example/android_wz/ESPView$MotionFrame;->worldAlpha(J)F",
+    "Lcom/example/android_wz/LocalHeroIdentityGate;->invalidate()V"
+  ]
+}

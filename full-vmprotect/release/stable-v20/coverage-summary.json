@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "scope": "fixed-apk-device-observed",
+  "sourceReport": "v36-9ad294c9-target-coverage-v11-device577.json",
+  "sourceReportSha256": "739e9a3d3c1d7c3f19752119a8a9610328c402c9287200796aa2a51597c50740",
+  "sourceApkSha256": "9ad294c9094efe11cb8e5f3f62d594eef2081da3bd0b47c3cbcc096c0e8930fb",
+  "protectedApkSha256": "ac321ade0724ac9f5413dc57533aadfc503587ef3c5cc3319ed9761047266279",
+  "verifiedMethods": 577,
+  "totalMethods": 54506,
+  "verifiedInstructions": 3587,
+  "totalInstructions": 839113,
+  "observedCoveragePercent": 0.4274752,
+  "fullVirtualizationGatePassed": false,
+  "device": {
+    "model": "RMX8899",
+    "api": 36,
+    "abi": "arm64-v8a"
+  }
+}

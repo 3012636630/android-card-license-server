@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "name": "DCC",
+  "repository": "https://github.com/amimo/dcc.git",
+  "revision": "17de4fd3202bd0e46735974211a43cda39fca5f3",
+  "archive_sha256": "4bb13f36bffa3830cd1b620041afbf96ce3fb5f927402d24e5765ed6d8238ebd",
+  "license": "Apache-2.0",
+  "license_sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+  "vendored_file_count": 70,
+  "vendored_allowlist_sha256": "414ee202a9d43800f9d93e635af3101d501479eb956a802b52b22fc95be80b7b",
+  "usage": "DEX-to-C compiler, patched legacy Androguard parser and JNI runtime"
+}

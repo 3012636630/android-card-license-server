@@ -5,7 +5,12 @@
   "description": "Cloud APK license injection and protection service.",
   "scripts": {
     "start": "node server.js",
-    "check": "node --check server.js"
+    "check": "node --check server.js",
+    "test:processor": "node --test tests/*.test.js",
+    "test:full-vmp-e2e": "node tools/run-full-vmp-e2e.js",
+    "full-vmprotect:build": "powershell -ExecutionPolicy Bypass -File full-vmprotect/build.ps1 build",
+    "full-vmprotect:check": "powershell -ExecutionPolicy Bypass -File full-vmprotect/build.ps1 check",
+    "full-vmprotect:test": "set PYTHONPATH=full-vmprotect&& python -m unittest discover -s full-vmprotect/tests -v"
   },
   "engines": {
     "node": ">=20"

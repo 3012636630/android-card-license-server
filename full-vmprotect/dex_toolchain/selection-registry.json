@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "profiles": [
+    {
+      "id": "v36-9ad294c9-java2c-scalar87-v1",
+      "input_apk_sha256": "9ad294c9094efe11cb8e5f3f62d594eef2081da3bd0b47c3cbcc096c0e8930fb",
+      "selection": "selections/v36-java2c-scalar87-candidate-v1.json",
+      "selection_sha256": "07b278fe60811d825aa716edbe2272cbada768d267f1f4bf1c1be6a7618a6bd6",
+      "library_name": "avmp-dcc",
+      "android_api": 23
+    }
+  ]
+}

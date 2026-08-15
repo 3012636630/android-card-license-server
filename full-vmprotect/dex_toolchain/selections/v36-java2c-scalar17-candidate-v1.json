@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "required_methods": [
+    "Lcom/example/android_wz/AimTriggerGate;->insideCircle(FFF)Z",
+    "Lcom/example/android_wz/AutoActionController;->elapsedSince(JJ)J",
+    "Lcom/example/android_wz/AutoActionController;->isSmiteSkill(I)Z",
+    "Lcom/example/android_wz/AutoActionController;->isUniverseMonster(I)Z",
+    "Lcom/example/android_wz/AutoActionController;->summonerReady(F)Z",
+    "Lcom/example/android_wz/AutoActionController;->validDamage(F)Z",
+    "Lcom/example/android_wz/DriverAimController;->angleDegrees(FFFF)F",
+    "Lcom/example/android_wz/DriverAimController;->clamp(FFF)F",
+    "Lcom/example/android_wz/DriverAimController;->finite(F)Z",
+    "Lcom/example/android_wz/DriverAimController;->mix64(J)J",
+    "Lcom/example/android_wz/DriverAimController;->redirectIntervalNs(J)J",
+    "Lcom/example/android_wz/DriverAimController;->scalePhysicalAxis(III)I",
+    "Lcom/example/android_wz/DriverAimController;->stationaryTimeoutNs(J)J",
+    "Lcom/example/android_wz/OverlayConfig;->clamp(FFF)F",
+    "Lcom/example/android_wz/OverlayConfig;->clamp(III)I",
+    "Lcom/example/android_wz/OverlayDrawRules;->clamp(FFF)F",
+    "Lcom/example/android_wz/PhysicalActionHoldGate;->insideCircle(IIIII)Z"
+  ]
+}
