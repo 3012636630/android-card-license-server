@@ -1,0 +1,54 @@
+name: build-multi-kernel-lsdriver
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Target kernel or all six
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - xiaomi-fuxi-5.15
+          - oneplus-11-5.15
+          - xiaomi-shennong-6.1
+          - oneplus-12-6.1
+          - xiaomi-dada-6.6
+          - oneplus-13-6.6
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJSON(inputs.target == 'all' && '["xiaomi-fuxi-5.15","oneplus-11-5.15","xiaomi-shennong-6.1","oneplus-12-6.1","xiaomi-dada-6.6","oneplus-13-6.6"]' || format('["{0}"]', inputs.target)) }}
+
+    steps:
+      - name: Check out build bundle
+        uses: actions/checkout@v4
+
+      - name: Install kernel build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            bc bison build-essential cpio dwarves flex git libelf-dev \
+            libssl-dev libudev-dev lz4 pahole python3 rsync zstd
+
+      - name: Build and verify target carrier
+        shell: bash
+        run: bash work/build-multi-kernel-lsdriver.sh '${{ matrix.target }}'
+
+      - name: Upload target artifact
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: lsdriver-${{ matrix.target }}
+          path: outputs/multi-kernel-cloud/${{ matrix.target }}/
+          if-no-files-found: error
+          retention-days: 14

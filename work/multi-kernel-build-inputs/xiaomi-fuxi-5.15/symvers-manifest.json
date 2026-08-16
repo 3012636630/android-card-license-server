@@ -1,0 +1,48 @@
+{
+  "config": {
+    "path": "D:\\CodexTemp\\multi-kernel-compat\\xiaomi-fuxi-5.15\\config",
+    "sha256": "86ef878f7fec286043bea2795dc530f5fd09476617da264259a14068be0920d2",
+    "size": 187914
+  },
+  "exports": {
+    "crc_encoding": "direct",
+    "direct_matches": 57,
+    "gpl": 4322,
+    "module_layout_crc": "0x0222dd63",
+    "normal": 3129,
+    "reference_matches": 57,
+    "relative_matches": 0,
+    "total": 7451
+  },
+  "image": {
+    "path": "D:\\CodexTemp\\multi-kernel-compat\\xiaomi-fuxi-5.15\\unpack\\Image",
+    "sha256": "3dbb3a3b77cee71cb961180c3c1d050c66505991a09b28b34a6ffc2f499d2bf6",
+    "size": 46410240
+  },
+  "outputs": {
+    "kallsyms": {
+      "path": "D:\\CodexTemp\\multi-kernel-compat\\xiaomi-fuxi-5.15\\kallsyms.txt",
+      "sha256": "5c4bd0e74e472a346050705f0922bce960757acf1bb01843584dce7ad7bae83b"
+    },
+    "module_symvers": {
+      "path": "D:\\CodexTemp\\multi-kernel-compat\\xiaomi-fuxi-5.15\\Module.symvers",
+      "sha256": "be6c2b756e390f4ae3aebd7ed8538fab6d271bc95f7e6a88b9798ca57232931d"
+    }
+  },
+  "references": [
+    {
+      "path": "D:\\CodexTemp\\multi-kernel-compat\\xiaomi-fuxi-5.15\\dlkm-extracted\\system_dlkm\\system_dlkm\\lib\\modules\\5.15.74\\kernel\\mm\\zsmalloc.ko",
+      "sha256": "abf789b38adb82a8a5ad7a55cb5d2ad0f06134a8880ed3fd5d1f905b0ced356a",
+      "vermagic": "vermagic=5.15.74 SMP preempt mod_unload modversions aarch64",
+      "version_records": 57
+    }
+  ],
+  "schema_version": 1,
+  "vmlinux": {
+    "duplicate_name_conflicts": 10,
+    "path": "D:\\CodexTemp\\multi-kernel-compat\\xiaomi-fuxi-5.15\\vmlinux.elf",
+    "sha256": "d8c0207e7234281c91c6ed0b9232db5c3439182e1e53e033999009fa1ebe6cab",
+    "size": 54137387,
+    "symbols": 152481
+  }
+}

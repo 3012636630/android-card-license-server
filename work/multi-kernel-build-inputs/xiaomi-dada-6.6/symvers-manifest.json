@@ -1,0 +1,48 @@
+{
+  "config": {
+    "path": "D:\\CodexTemp\\multi-kernel-compat\\xiaomi-dada-6.6\\config",
+    "sha256": "028d535ad6dcbffd7c59d4e635639761de828977a40d514d2f99a96d59a85c06",
+    "size": 210375
+  },
+  "exports": {
+    "crc_encoding": "direct",
+    "direct_matches": 250,
+    "gpl": 4683,
+    "module_layout_crc": "0x4e276f37",
+    "normal": 3107,
+    "reference_matches": 250,
+    "relative_matches": 0,
+    "total": 7790
+  },
+  "image": {
+    "path": "D:\\CodexTemp\\multi-kernel-compat\\xiaomi-dada-6.6\\unpack\\Image",
+    "sha256": "137268d24e41382976ee336f575e3e0f29df4f99e33fdeffb69288b988cdba46",
+    "size": 35904000
+  },
+  "outputs": {
+    "kallsyms": {
+      "path": "D:\\CodexTemp\\multi-kernel-compat\\xiaomi-dada-6.6\\kallsyms.txt",
+      "sha256": "99766c120b4f84557b8b934e66969cd6864722e0ce1dbeb0986f07cb3d380b7d"
+    },
+    "module_symvers": {
+      "path": "D:\\CodexTemp\\multi-kernel-compat\\xiaomi-dada-6.6\\Module.symvers",
+      "sha256": "4403f764a2ab31557b00b5844013db4ab7508fb09273d807d8912a672e48123c"
+    }
+  },
+  "references": [
+    {
+      "path": "D:\\CodexTemp\\multi-kernel-compat\\xiaomi-dada-6.6\\dlkm-extracted\\system_dlkm\\system_dlkm\\lib\\modules\\6.6.30-android15-8-geae86f166c48-abogki367569362-4k\\kernel\\net\\tipc\\tipc.ko",
+      "sha256": "9d79c48070785e4992671b91f86ac90d8557a7f1925709b4c9b71043e6ddf8af",
+      "vermagic": "vermagic=6.6.30-android15-8-geae86f166c48-abogki367569362-4k SMP preempt mod_unload modversions aarch64",
+      "version_records": 250
+    }
+  ],
+  "schema_version": 1,
+  "vmlinux": {
+    "duplicate_name_conflicts": 1325,
+    "path": "D:\\CodexTemp\\multi-kernel-compat\\xiaomi-dada-6.6\\vmlinux.elf",
+    "sha256": "5ecc25113d5ac383fd5e25d6859aff9ff33a0869af4462236143f5120642e5fb",
+    "size": 40956780,
+    "symbols": 102317
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "config": {
+    "path": "D:\\CodexTemp\\multi-kernel-compat\\oneplus-11-5.15\\config",
+    "sha256": "7ab63852c449b8023dc21f5a92181c12c451c80dfdcebaf45d10c977cbf6c048",
+    "size": 189862
+  },
+  "exports": {
+    "crc_encoding": "direct",
+    "direct_matches": 57,
+    "gpl": 4942,
+    "module_layout_crc": "0x0222dd63",
+    "normal": 3506,
+    "reference_matches": 57,
+    "relative_matches": 0,
+    "total": 8448
+  },
+  "image": {
+    "path": "D:\\CodexTemp\\multi-kernel-compat\\oneplus-11-5.15\\unpack\\Image",
+    "sha256": "9af3a0ec5dab56b7510360e02eed13c5803952c283ce1deb1f6aa25cfb3c6d2c",
+    "size": 54123008
+  },
+  "outputs": {
+    "kallsyms": {
+      "path": "D:\\CodexTemp\\multi-kernel-compat\\oneplus-11-5.15\\kallsyms.txt",
+      "sha256": "12caf3fa98dbcf68000d21a50c59b75d7df67ae4f767df19185689750fb92143"
+    },
+    "module_symvers": {
+      "path": "D:\\CodexTemp\\multi-kernel-compat\\oneplus-11-5.15\\Module.symvers",
+      "sha256": "02735aa8f45ae891457aecad7910102ea82728cd388eee72ba8f51216dfb04f5"
+    }
+  },
+  "references": [
+    {
+      "path": "D:\\CodexTemp\\multi-kernel-compat\\oneplus-11-5.15\\dlkm-extracted\\system_dlkm\\lib\\modules\\5.15.180-android13-8-o-01179-g15b0e605e4c2\\kernel\\mm\\zsmalloc.ko",
+      "sha256": "07a8c63fcb7747f0be78e1e4b730f19540aebea2d2e2a66c238ad59ac7bb65fe",
+      "vermagic": "vermagic=5.15.180-android13-8-o-01179-g15b0e605e4c2 SMP preempt mod_unload modversions aarch64",
+      "version_records": 57
+    }
+  ],
+  "schema_version": 1,
+  "vmlinux": {
+    "duplicate_name_conflicts": 10,
+    "path": "D:\\CodexTemp\\multi-kernel-compat\\oneplus-11-5.15\\vmlinux.elf",
+    "sha256": "f3f0648c7a47f519db43e28cc96d14a3c7b3d024fab0d76ed943fdc9e3a184bd",
+    "size": 62263426,
+    "symbols": 159719
+  }
+}

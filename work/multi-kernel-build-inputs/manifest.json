@@ -1,0 +1,137 @@
+{
+    "targets":  [
+                    {
+                        "files":  {
+                                      "config":  {
+                                                     "sha256":  "86ef878f7fec286043bea2795dc530f5fd09476617da264259a14068be0920d2",
+                                                     "size":  187914
+                                                 },
+                                      "Module.symvers":  {
+                                                             "sha256":  "be6c2b756e390f4ae3aebd7ed8538fab6d271bc95f7e6a88b9798ca57232931d",
+                                                             "size":  461688
+                                                         },
+                                      "reference.ko":  {
+                                                           "sha256":  "abf789b38adb82a8a5ad7a55cb5d2ad0f06134a8880ed3fd5d1f905b0ced356a",
+                                                           "size":  83801
+                                                       },
+                                      "symvers-manifest.json":  {
+                                                                    "sha256":  "d71ccab2e7f63cb65e5280c0879925a006cb19ac481e09890e0054afbbaa9185",
+                                                                    "size":  1762
+                                                                }
+                                  },
+                        "id":  "xiaomi-fuxi-5.15",
+                        "release":  "5.15.74-android13-8-00049-g8945ccdb2203-ab9500309"
+                    },
+                    {
+                        "files":  {
+                                      "config":  {
+                                                     "sha256":  "7ab63852c449b8023dc21f5a92181c12c451c80dfdcebaf45d10c977cbf6c048",
+                                                     "size":  189862
+                                                 },
+                                      "Module.symvers":  {
+                                                             "sha256":  "02735aa8f45ae891457aecad7910102ea82728cd388eee72ba8f51216dfb04f5",
+                                                             "size":  528396
+                                                         },
+                                      "reference.ko":  {
+                                                           "sha256":  "07a8c63fcb7747f0be78e1e4b730f19540aebea2d2e2a66c238ad59ac7bb65fe",
+                                                           "size":  80505
+                                                       },
+                                      "symvers-manifest.json":  {
+                                                                    "sha256":  "1ed88e64fc045e0b38d80cab4c84bef6fbe075bd742ce0c936ad1f50621f7c9a",
+                                                                    "size":  1813
+                                                                }
+                                  },
+                        "id":  "oneplus-11-5.15",
+                        "release":  "5.15.180-android13-8-o-01179-g15b0e605e4c2"
+                    },
+                    {
+                        "files":  {
+                                      "config":  {
+                                                     "sha256":  "acdeb54dc5f1ec7d9e228d42bbff01ee1727e115f3da0640f818b73695c50e8b",
+                                                     "size":  201849
+                                                 },
+                                      "Module.symvers":  {
+                                                             "sha256":  "db23ebbdc43e810cbc4171a8bcbcdc9472696ae905cee7cff0e4717b0186fda3",
+                                                             "size":  388328
+                                                         },
+                                      "reference.ko":  {
+                                                           "sha256":  "3e21b1258f964ba40840363fe95de1ac81e3f4cb1395eed1aaba27d481060845",
+                                                           "size":  879577
+                                                       },
+                                      "symvers-manifest.json":  {
+                                                                    "sha256":  "cdae2a129158800c9a8a1719c8f74861b3f133e250717dea34599eec20f046d9",
+                                                                    "size":  1861
+                                                                }
+                                  },
+                        "id":  "xiaomi-shennong-6.1",
+                        "release":  "6.1.25-android14-11-g8744d1c0cf31-ab10888519"
+                    },
+                    {
+                        "files":  {
+                                      "config":  {
+                                                     "sha256":  "81bbe5daba0684da10d6b2cc499b04d0bc2075678587a24c8fea4d084cc87d86",
+                                                     "size":  207023
+                                                 },
+                                      "Module.symvers":  {
+                                                             "sha256":  "c8b33035f974269e1af091982d5917f45c093748112367326be99c070b57d254",
+                                                             "size":  509685
+                                                         },
+                                      "reference.ko":  {
+                                                           "sha256":  "8b0a4133ed0b3731c94417520e7e7264bf39fed8baca76ea270b25342a9f441a",
+                                                           "size":  841641
+                                                       },
+                                      "symvers-manifest.json":  {
+                                                                    "sha256":  "b1fccc64bc1a513e9cf14b64853c89dd08f70bf19a70ebea73b753f24596ccda",
+                                                                    "size":  1815
+                                                                }
+                                  },
+                        "id":  "oneplus-12-6.1",
+                        "release":  "6.1.141-android14-11-o-g984c12362a16"
+                    },
+                    {
+                        "files":  {
+                                      "config":  {
+                                                     "sha256":  "028d535ad6dcbffd7c59d4e635639761de828977a40d514d2f99a96d59a85c06",
+                                                     "size":  210375
+                                                 },
+                                      "Module.symvers":  {
+                                                             "sha256":  "4403f764a2ab31557b00b5844013db4ab7508fb09273d807d8912a672e48123c",
+                                                             "size":  488311
+                                                         },
+                                      "reference.ko":  {
+                                                           "sha256":  "9d79c48070785e4992671b91f86ac90d8557a7f1925709b4c9b71043e6ddf8af",
+                                                           "size":  690801
+                                                       },
+                                      "symvers-manifest.json":  {
+                                                                    "sha256":  "c71f340a98f16509be12ea4714d9b4a575aed4f46a5d56b48a0cc122c0b06eea",
+                                                                    "size":  1852
+                                                                }
+                                  },
+                        "id":  "xiaomi-dada-6.6",
+                        "release":  "6.6.30-android15-8-geae86f166c48-abogki367569362-4k"
+                    },
+                    {
+                        "files":  {
+                                      "config":  {
+                                                     "sha256":  "032ff35b6657c91047c93090a1884993ca622d0720fc2bb772a7ef0558c3fb7e",
+                                                     "size":  211729
+                                                 },
+                                      "Module.symvers":  {
+                                                             "sha256":  "0f6be3660c97bef5e499aaa31e5278449ae8f270451c81d08312173b69aea31a",
+                                                             "size":  572349
+                                                         },
+                                      "reference.ko":  {
+                                                           "sha256":  "40c3d53eb3277968ee4d78810432ae157457a42383aabfc4f9d3bbddd722e756",
+                                                           "size":  691537
+                                                       },
+                                      "symvers-manifest.json":  {
+                                                                    "sha256":  "722113ec115aa503a405abfeeec8ede909da9e5553e43a7ba908c8bb681f04de",
+                                                                    "size":  1770
+                                                                }
+                                  },
+                        "id":  "oneplus-13-6.6",
+                        "release":  "6.6.118-android15-8-g2e6b9c3812c5-ab15114928-4k"
+                    }
+                ],
+    "schema_version":  1
+}

@@ -1,0 +1,48 @@
+{
+  "config": {
+    "path": "D:\\CodexTemp\\multi-kernel-compat\\xiaomi-shennong-6.1\\config",
+    "sha256": "acdeb54dc5f1ec7d9e228d42bbff01ee1727e115f3da0640f818b73695c50e8b",
+    "size": 201849
+  },
+  "exports": {
+    "crc_encoding": "direct",
+    "direct_matches": 250,
+    "gpl": 3769,
+    "module_layout_crc": "0xea759d7f",
+    "normal": 2585,
+    "reference_matches": 250,
+    "relative_matches": 0,
+    "total": 6354
+  },
+  "image": {
+    "path": "D:\\CodexTemp\\multi-kernel-compat\\xiaomi-shennong-6.1\\unpack\\Image",
+    "sha256": "a0f7e71294070ea6c5363f5cb8c9bb21473f064416513eea7c2c6bab1e5dea90",
+    "size": 33761792
+  },
+  "outputs": {
+    "kallsyms": {
+      "path": "D:\\CodexTemp\\multi-kernel-compat\\xiaomi-shennong-6.1\\kallsyms.txt",
+      "sha256": "78f6bb50d87a269e67528df1b67d39664cb8a2f38f638307f7ce7765ab56c863"
+    },
+    "module_symvers": {
+      "path": "D:\\CodexTemp\\multi-kernel-compat\\xiaomi-shennong-6.1\\Module.symvers",
+      "sha256": "db23ebbdc43e810cbc4171a8bcbcdc9472696ae905cee7cff0e4717b0186fda3"
+    }
+  },
+  "references": [
+    {
+      "path": "D:\\CodexTemp\\multi-kernel-compat\\xiaomi-shennong-6.1\\dlkm-extracted\\system_dlkm\\system_dlkm\\lib\\modules\\6.1.25-android14-11-g8744d1c0cf31-ab10888519\\kernel\\net\\tipc\\tipc.ko",
+      "sha256": "3e21b1258f964ba40840363fe95de1ac81e3f4cb1395eed1aaba27d481060845",
+      "vermagic": "vermagic=6.1.25-android14-11-g8744d1c0cf31-ab10888519 SMP preempt mod_unload modversions aarch64",
+      "version_records": 250
+    }
+  ],
+  "schema_version": 1,
+  "vmlinux": {
+    "duplicate_name_conflicts": 1291,
+    "path": "D:\\CodexTemp\\multi-kernel-compat\\xiaomi-shennong-6.1\\vmlinux.elf",
+    "sha256": "5456bbdb5b1b1d81ecdac0ee8889c045dc43938a0d4b4855fb9f8333c5c3690f",
+    "size": 38278282,
+    "symbols": 92905
+  }
+}
