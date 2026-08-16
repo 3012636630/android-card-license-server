@@ -107,6 +107,12 @@ static uint32_t restore_regs_code[] = {
 // ========================================================
 typedef unsigned long (*kallsyms_lookup_name_t)(const char *name);
 
+static noinline __nocfi unsigned long
+call_kallsyms_lookup_name_nocfi(unsigned long addr, const char *name)
+{
+    return ((kallsyms_lookup_name_t)addr)(name);
+}
+
 // 这个钩子目标永远不变，就是为了偷 kallsyms_lookup_name
 static struct kprobe kp_resolver = {
     .symbol_name = "kallsyms_lookup_name", 
@@ -117,7 +123,7 @@ static struct kprobe kp_resolver = {
 // 参数: target_symbol_name - 你想要查找的内核隐藏函数名
 // =========================================================================
 unsigned long get_symbol_addr(const char *target_symbol_name) {
-kallsyms_lookup_name_t my_kallsyms_lookup_name;
+    unsigned long kallsyms_addr;
     unsigned long target_addr = 0;
     int ret;
 
@@ -135,14 +141,15 @@ kallsyms_lookup_name_t my_kallsyms_lookup_name;
         return 0;
     }
 
-    // 2. 强行将拿到的内存地址，转换为我们可以直接调用的函数指针
-    my_kallsyms_lookup_name = (kallsyms_lookup_name_t)kp_resolver.addr;
+    // kprobe.addr points at the real function body, not the legacy CFI jump table.
+    kallsyms_addr = (unsigned long)kp_resolver.addr;
 
     // 3. 卸磨杀驴：地址已经偷到手了，立刻撤销 Kprobe，不要给系统留下痕迹
     unregister_kprobe(&kp_resolver);
 
     // 4. 利用我们刚偷到的神级函数，去查目标函数名！
-    target_addr = my_kallsyms_lookup_name(target_symbol_name);
+    target_addr = call_kallsyms_lookup_name_nocfi(kallsyms_addr,
+                                                   target_symbol_name);
 
     if (target_addr) {
         LS_PRINTK(KERN_INFO "[lsdriver] 🎯 套娃成功！解析到 [%s] 动态地址: 0x%lx\n", target_symbol_name, target_addr);

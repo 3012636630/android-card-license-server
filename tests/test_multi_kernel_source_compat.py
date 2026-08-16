@@ -88,6 +88,38 @@ class MultiKernelSourceCompatTests(unittest.TestCase):
         self.assertIn("synchronize_rcu_tasks", tool)
         self.assertIn("__mmu_notifier_arch_invalidate_secondary_tlbs", tool)
 
+    def test_kallsyms_body_call_has_a_nocfi_boundary(self):
+        hook = (SOURCE / "hook" / "hook.c").read_text(encoding="utf-8")
+        self.assertRegex(
+            hook,
+            r"static noinline __nocfi unsigned long\s+"
+            r"call_kallsyms_lookup_name_nocfi\(",
+        )
+        self.assertIn(
+            "return ((kallsyms_lookup_name_t)addr)(name);",
+            hook,
+        )
+        self.assertIn(
+            "target_addr = call_kallsyms_lookup_name_nocfi(kallsyms_addr,",
+            hook,
+        )
+        self.assertNotIn("my_kallsyms_lookup_name", hook)
+
+        debug_hook = (SOURCE / "dbg_hook.c").read_text(encoding="utf-8")
+        self.assertIn('#include "hook/hook.h"', debug_hook)
+        self.assertNotIn("my_kallsyms_lookup_name", debug_hook)
+        self.assertNotIn(
+            'resolve_unexported_symbol("kallsyms_lookup_name")',
+            debug_hook,
+        )
+        for symbol in (
+            "copy_from_user_nofault",
+            "debug_fault_info",
+            "set_memory_rw",
+            "set_memory_ro",
+        ):
+            self.assertIn(f'get_symbol_addr("{symbol}")', debug_hook)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -24,6 +24,7 @@
 #include "emulate_insn.h"
 #include "coom.h"   
 #include "kernel_compat.h"
+#include "hook/hook.h"
 #include <asm/neon.h>
 
 
@@ -43,9 +44,6 @@ ulong target_addr = 0;
 
 extern struct req_obj *g_req; 
 #define g_slots (g_req->slots)
-
-typedef unsigned long (*kallsyms_lookup_name_t)(const char *name);
-static kallsyms_lookup_name_t my_kallsyms_lookup_name = NULL;
 
 static int my_custom_bp_handler(unsigned long addr, unsigned long esr, struct pt_regs *regs);
 static int my_custom_step_handler(unsigned long addr, unsigned long esr, struct pt_regs *regs);
@@ -1341,7 +1339,7 @@ static bool is_hooked = false;
 static int setup_hardware_breakpoints_locked(u64 hook_addr, int hw_type,
                                               const struct ls_bp_action *action)
 {
-    unsigned long fault_info_addr, rw_addr, ro_addr, kallsyms_addr;
+    unsigned long fault_info_addr, rw_addr, ro_addr;
     struct bm_slot *slot;
     u64 ctrl;
     int ret, i;
@@ -1372,24 +1370,16 @@ static int setup_hardware_breakpoints_locked(u64 hook_addr, int hw_type,
         LS_PRINTK(KERN_INFO "[lsdriver] 棣栨鍚姩锛氬紑濮嬪姭鎸佸叏灞€寮傚父琛?..\n");
 
         // 馃専 1. 浼樺厛鑾峰彇鍏ㄥ眬瀹夊叏璇诲彇鍑芥暟锛堝繀椤诲姞鑺辨嫭鍙锋嫤鎴け璐ワ級
-        g_safe_read_fn = (void *)resolve_unexported_symbol("copy_from_user_nofault");
+        g_safe_read_fn = (void *)get_symbol_addr("copy_from_user_nofault");
         if (!g_safe_read_fn) {
             LS_PRINTK(KERN_ERR "[lsdriver] 涓ラ噸閿欒: 鎵句笉鍒?copy_from_user_nofault\n");
             return -EFAULT; 
         }
 
-        // 馃専 2. 鑾峰彇鍐呮牳涓囪兘瀵诲潃鍑芥暟锛堝繀椤诲姞鑺辨嫭鍙锋嫤鎴け璐ワ級
-        kallsyms_addr = resolve_unexported_symbol("kallsyms_lookup_name");
-        if (!kallsyms_addr) {
-            LS_PRINTK(KERN_ERR "[lsdriver] 涓ラ噸閿欒: 鎵句笉鍒?kallsyms_lookup_name\n");
-            return -EFAULT; 
-        }
-        my_kallsyms_lookup_name = (kallsyms_lookup_name_t)kallsyms_addr;
-
         // 馃専 3. 鑾峰彇鍔寔鎵€闇€鐨勫叧閿澏鐐?
-        fault_info_addr = my_kallsyms_lookup_name("debug_fault_info");
-        rw_addr = my_kallsyms_lookup_name("set_memory_rw");
-        ro_addr = my_kallsyms_lookup_name("set_memory_ro");
+        fault_info_addr = get_symbol_addr("debug_fault_info");
+        rw_addr = get_symbol_addr("set_memory_rw");
+        ro_addr = get_symbol_addr("set_memory_ro");
 
         if (!fault_info_addr || !rw_addr || !ro_addr) {
             LS_PRINTK(KERN_ERR "[lsdriver] 涓ラ噸閿欒: 鎵句笉鍒板簳灞傝皟璇曠粨鏋勪綋\n");
