@@ -50,6 +50,7 @@ class MultiKernelCloudBuildTests(unittest.TestCase):
         self.assertIn(': > "$kernel/.scmversion"', script)
         self.assertIn('--set-str LOCALVERSION "$local_suffix"', script)
         self.assertNotIn('  LOCALVERSION="$local_suffix"\n)', script)
+        self.assertIn("  LOCALVERSION=\n)", script)
         self.assertIn('generated_release" != "$base_release', script)
         self.assertIn('> "$out/include/config/kernel.release"', script)
         self.assertIn('> "$out/include/generated/utsrelease.h"', script)

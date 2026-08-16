@@ -160,6 +160,7 @@ make_flags=(
   ARCH=arm64
   LLVM=1
   LLVM_IAS=1
+  LOCALVERSION=
 )
 kconfig_stub_log="$artifacts/kconfig-stubs.txt"
 : > "$kconfig_stub_log"
