@@ -160,7 +160,6 @@ make_flags=(
   ARCH=arm64
   LLVM=1
   LLVM_IAS=1
-  LOCALVERSION="$local_suffix"
 )
 kconfig_stub_log="$artifacts/kconfig-stubs.txt"
 : > "$kconfig_stub_log"
@@ -226,12 +225,32 @@ make "${make_flags[@]}" -j"$(nproc)" modules_prepare
 cp "$evidence/Module.symvers" "$out/Module.symvers"
 
 generated_release=$(cat "$out/include/config/kernel.release")
+release_normalized=false
 if [[ "$generated_release" != "$release" ]]; then
-  echo "generated release mismatch: $generated_release != $release" >&2
+  if [[ "$generated_release" != "$base_release" ]]; then
+    echo "generated release cannot be normalized: $generated_release != $base_release" >&2
+    exit 1
+  fi
+  printf '%s\n' "$release" > "$out/include/config/kernel.release"
+  printf '#define UTS_RELEASE "%s"\n' "$release" \
+    > "$out/include/generated/utsrelease.h"
+  release_normalized=true
+fi
+final_kernel_release=$(cat "$out/include/config/kernel.release")
+final_uts_release=$(sed -n 's/^#define UTS_RELEASE "\(.*\)"$/\1/p' \
+  "$out/include/generated/utsrelease.h")
+if [[ "$final_kernel_release" != "$release" || "$final_uts_release" != "$release" ]]; then
+  echo "exact release header verification failed" >&2
   exit 1
 fi
+{
+  printf 'expected=%s\n' "$release"
+  printf 'generated=%s\n' "$generated_release"
+  printf 'normalized=%s\n' "$release_normalized"
+} > "$artifacts/release-normalization.txt"
 
 make "${make_flags[@]}" \
+  KERNELRELEASE="$release" \
   M="$driver" \
   LS_RELAX_TARGET_HARDENING=n \
   LS_ENABLE_DWARF=y \
