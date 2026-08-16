@@ -222,7 +222,32 @@ for attempt in $(seq 1 64); do
   fi
 done
 make "${make_flags[@]}" -j"$(nproc)" modules_prepare
-cp "$evidence/Module.symvers" "$out/Module.symvers"
+python3 - "$evidence/Module.symvers" "$out/Module.symvers" \
+  "$artifacts/symvers-normalization.txt" <<'PY'
+import pathlib
+import sys
+
+source_path, output_path, report_path = map(pathlib.Path, sys.argv[1:])
+records = []
+normalized = 0
+for line_number, line in enumerate(
+    source_path.read_text(encoding="ascii").splitlines(), start=1
+):
+    fields = line.split("\t")
+    if len(fields) != 5:
+        raise SystemExit(
+            f"invalid Module.symvers record at {source_path}:{line_number}"
+        )
+    if fields[4] == "-":
+        fields[4] = ""
+        normalized += 1
+    records.append("\t".join(fields))
+output_path.write_text("\n".join(records) + "\n", encoding="ascii")
+report_path.write_text(
+    f"records={len(records)}\nnormalized_dash_namespaces={normalized}\n",
+    encoding="ascii",
+)
+PY
 
 generated_release=$(cat "$out/include/config/kernel.release")
 release_normalized=false

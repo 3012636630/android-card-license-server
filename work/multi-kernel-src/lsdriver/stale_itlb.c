@@ -270,7 +270,7 @@ static int ls_stale_restore_locked(struct ls_stale_itlb_slot_state *slot,
                 first_error = ret;
             continue;
         }
-        set_pte_at(mm, va, ptep, slot->orig_pte[i]);
+        set_pte(ptep, slot->orig_pte[i]);
         pte_unmap_unlock(ptep, ptl);
     }
     mmap_write_unlock(mm);
@@ -330,7 +330,8 @@ static int ls_stale_set_shadow_locked(struct ls_stale_itlb_slot_state *slot)
         shadow = ls_stale_make_shadow_pte(orig, pa);
         slot->orig_pte[i] = orig;
         slot->orig_count = i + 1;
-        set_pte_at(mm, va, ptep, shadow);
+        /* Shadow contents were I-cache synchronized before this mapping. */
+        set_pte(ptep, shadow);
         pte_unmap_unlock(ptep, ptl);
     }
     mmap_write_unlock(mm);

@@ -38,8 +38,11 @@ class MultiKernelCloudBuildTests(unittest.TestCase):
         self.assertIn("LS_RELAX_TARGET_HARDENING=n", script)
         self.assertNotIn("LS_RELAX_TARGET_HARDENING=y", script)
         self.assertIn("LS_ENABLE_DWARF=y", script)
-        self.assertIn('cp "$evidence/Module.symvers" "$out/Module.symvers"', script)
-        self.assertLess(script.index("modules_prepare"), script.index('cp "$evidence/Module.symvers"'))
+        symvers_args = '"$evidence/Module.symvers" "$out/Module.symvers"'
+        self.assertIn(symvers_args, script)
+        self.assertLess(script.index("modules_prepare"), script.index(symvers_args))
+        self.assertIn('if fields[4] == "-":', script)
+        self.assertIn("normalized_dash_namespaces", script)
         self.assertIn('generated_release" != "$release', script)
         self.assertIn("scanning $clang_tag_pattern", script)
         self.assertIn("unsafe missing Kconfig path", script)

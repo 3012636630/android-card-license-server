@@ -313,7 +313,9 @@ uintptr_t get_anon_region_by_index(pid_t pid, const char* target_name, int targe
         // 现代 Android 内核 (带 CONFIG_ANON_VMA_NAME 选项) 提供了 anon_vma_name() 函数
      #if LS_HAVE_ANON_VMA_NAME
     /* 在高版本内核中正常获取匿名 VMA 名字 */
-    struct anon_vma_name *anon_name_struct = anon_vma_name(vma);
+    /* mmap_lock is held, so this mirrors anon_vma_name() without an export. */
+    struct anon_vma_name *anon_name_struct =
+        vma->vm_file ? NULL : vma->anon_name;
     if (anon_name_struct) {
         vma_name = anon_name_struct->name;
     }
