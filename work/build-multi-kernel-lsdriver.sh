@@ -134,6 +134,7 @@ for key, value in values.items():
         raise SystemExit(f"expected one {key} assignment in {path}")
 open(path, "w", encoding="utf-8", newline="\n").write(text)
 PY
+: > "$kernel/.scmversion"
 
 mkdir -p "$out"
 cp "$evidence/config" "$out/.config"
@@ -159,6 +160,7 @@ make_flags=(
   ARCH=arm64
   LLVM=1
   LLVM_IAS=1
+  LOCALVERSION="$local_suffix"
 )
 kconfig_stub_log="$artifacts/kconfig-stubs.txt"
 : > "$kconfig_stub_log"
@@ -188,7 +190,30 @@ for attempt in $(seq 1 64); do
       echo "reported missing Kconfig already exists: $relative" >&2
       exit 1
     fi
-    mkdir -p "$(dirname "$stub")"
+    parent=$(dirname "$stub")
+    relative_parent=$(dirname "$relative")
+    cursor="$kernel"
+    IFS='/' read -r -a parent_parts <<< "$relative_parent"
+    for component in "${parent_parts[@]}"; do
+      [[ "$component" == "." ]] && continue
+      cursor="$cursor/$component"
+      if [[ -L "$cursor" && ! -e "$cursor" ]]; then
+        link_target=$(readlink "$cursor")
+        rm -- "$cursor"
+        mkdir "$cursor"
+        printf 'BROKEN_SYMLINK:%s:%s\n' "${cursor#"$kernel/"}" "$link_target" |
+          tee -a "$kconfig_stub_log"
+      elif [[ -e "$cursor" && ! -d "$cursor" ]]; then
+        echo "non-directory Kconfig parent: ${cursor#"$kernel/"}" >&2
+        exit 1
+      else
+        mkdir -p "$cursor"
+      fi
+    done
+    if [[ ! -d "$parent" ]]; then
+      echo "Kconfig parent was not materialized: $relative_parent" >&2
+      exit 1
+    fi
     printf '# Empty stub for an omitted OEM Kconfig subtree.\n' > "$stub"
     printf '%s\n' "$relative" | tee -a "$kconfig_stub_log"
   done
