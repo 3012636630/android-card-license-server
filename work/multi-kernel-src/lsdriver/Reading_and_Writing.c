@@ -26,6 +26,15 @@ typedef int (*ls_access_remote_vm_t)(struct mm_struct *mm,
                                      void *buf,
                                      int len,
                                      unsigned int gup_flags);
+
+static noinline __nocfi int
+call_access_remote_vm_nocfi(ls_access_remote_vm_t fn, struct mm_struct *mm,
+                            unsigned long addr, void *buf, int len,
+                            unsigned int gup_flags)
+{
+    return fn(mm, addr, buf, len, gup_flags);
+}
+
 static DEFINE_MUTEX(g_access_remote_vm_lock);
 static ls_access_remote_vm_t g_access_remote_vm;
 static bool g_access_remote_vm_resolved;
@@ -347,8 +356,9 @@ long phys_rw_memory(pid_t target_pid, unsigned long va, void *buffer,
     if (!mm)
         return -EINVAL;
 
-    copied = access_remote_vm_fn(mm, va, buffer, (int)size,
-                                 FOLL_FORCE | FOLL_WRITE);
+    copied = call_access_remote_vm_nocfi(access_remote_vm_fn, mm, va, buffer,
+                                         (int)size,
+                                         FOLL_FORCE | FOLL_WRITE);
     mmput(mm);
 
     if (copied < 0)

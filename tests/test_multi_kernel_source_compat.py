@@ -143,6 +143,26 @@ class MultiKernelSourceCompatTests(unittest.TestCase):
         self.assertIn("ret = ls_kgsl_hide_install();", main)
         self.assertIn("ret = ls_kgsl_hide_install();", control)
 
+    def test_runtime_reached_body_addresses_use_nocfi_call_boundaries(self):
+        conceal = (SOURCE / "conceal_driver.c").read_text(encoding="utf-8")
+        self.assertRegex(
+            conceal,
+            r"static noinline __nocfi int\s+call_kobject_rename_nocfi\(",
+        )
+        self.assertEqual(conceal.count("call_kobject_rename_nocfi("), 3)
+        self.assertNotIn("ret = hidden_kobject_rename(", conceal)
+
+        memory = (SOURCE / "Reading_and_Writing.c").read_text(encoding="utf-8")
+        self.assertRegex(
+            memory,
+            r"static noinline __nocfi int\s+call_access_remote_vm_nocfi\(",
+        )
+        self.assertIn(
+            "copied = call_access_remote_vm_nocfi(access_remote_vm_fn,",
+            memory,
+        )
+        self.assertNotIn("copied = access_remote_vm_fn(", memory)
+
 
 if __name__ == "__main__":
     unittest.main()

