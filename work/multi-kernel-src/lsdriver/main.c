@@ -92,7 +92,7 @@ static void lsdriver_release_app_hooks_locked(void)
     if (!g_hooks_installed)
         return;
 
-    synchronize_rcu_tasks();
+    ls_synchronize_hook_readers();
     for (i = 0; i < g_hooks_installed; i++)
         release_inline_hook(&g_hooks[i]);
     g_hooks_installed = 0;

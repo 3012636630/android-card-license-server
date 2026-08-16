@@ -21,6 +21,7 @@
 #include "Reading_and_Writing.h"
 #include "stale_itlb.h"
 #include "target_guard.h"
+#include "tool.h"
 
 #define LS_STALE_PTE_PA_MASK GENMASK_ULL(47, 12)
 
@@ -228,7 +229,7 @@ static int ls_stale_force_tlbi_locked(struct ls_stale_itlb_slot_state *slot)
     }
 
     ls_stale_barrier();
-    flush_tlb_mm(mm);
+    ls_flush_tlb_mm(mm);
     ls_stale_barrier();
     mmput(mm);
     return 0;
@@ -278,7 +279,7 @@ static int ls_stale_restore_locked(struct ls_stale_itlb_slot_state *slot,
     ls_stale_barrier();
     if (force_tlbi || READ_ONCE(g_stale_itlb_restore_tlbi) ||
         (slot->flags & LS_STALE_ITLB_F_RESTORE_TLBI))
-        flush_tlb_mm(mm);
+        ls_flush_tlb_mm(mm);
     ls_stale_barrier();
     mmput(mm);
 
@@ -337,7 +338,7 @@ static int ls_stale_set_shadow_locked(struct ls_stale_itlb_slot_state *slot)
     mmap_write_unlock(mm);
 
     ls_stale_barrier();
-    flush_tlb_mm(mm);
+    ls_flush_tlb_mm(mm);
     ls_stale_barrier();
     mmput(mm);
 

@@ -23,6 +23,13 @@
 #define LS_VTIME_ESR_IS_ULONG 0
 #endif
 
+/* Android 6.6 stopped exporting two helpers used by inline kernel APIs. */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 6, 0)
+#define LS_NEEDS_6_6_PRIVATE_HELPER_RESOLUTION 1
+#else
+#define LS_NEEDS_6_6_PRIVATE_HELPER_RESOLUTION 0
+#endif
+
 /* 6.1+ Android common kernels use KCFI; 5.15 uses legacy Clang CFI. */
 #if IS_ENABLED(CONFIG_CFI_CLANG) && \
     LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)

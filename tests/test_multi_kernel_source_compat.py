@@ -67,6 +67,7 @@ class MultiKernelSourceCompatTests(unittest.TestCase):
         self.assertIn("KERNEL_VERSION(6, 1, 0)", compat)
         self.assertIn("LS_HAVE_MAPLE_TREE_VMA", compat)
         self.assertIn("LS_SCHED_SWITCH_HAS_PREV_STATE", compat)
+        self.assertIn("LS_NEEDS_6_6_PRIVATE_HELPER_RESOLUTION", compat)
         self.assertIn("LS_TARGET_USES_KCFI", compat)
         tool = (SOURCE / "tool.c").read_text(encoding="utf-8")
         self.assertIn("#if LS_HAVE_ANON_VMA_NAME", tool)
@@ -76,6 +77,16 @@ class MultiKernelSourceCompatTests(unittest.TestCase):
         stale = (SOURCE / "stale_itlb.c").read_text(encoding="utf-8")
         self.assertNotIn("set_pte_at(", stale)
         self.assertGreaterEqual(stale.count("set_pte(ptep,"), 2)
+        self.assertNotRegex(stale, r"(?<!ls_)flush_tlb_mm\(")
+        self.assertGreaterEqual(stale.count("ls_flush_tlb_mm("), 3)
+        main = (SOURCE / "main.c").read_text(encoding="utf-8")
+        kgsl = (SOURCE / "kgsl_hide.c").read_text(encoding="utf-8")
+        self.assertNotIn("synchronize_rcu_tasks();", main)
+        self.assertNotIn("synchronize_rcu_tasks();", kgsl)
+        self.assertIn("ls_synchronize_hook_readers();", main)
+        self.assertIn("ls_synchronize_hook_readers();", kgsl)
+        self.assertIn("synchronize_rcu_tasks", tool)
+        self.assertIn("__mmu_notifier_arch_invalidate_secondary_tlbs", tool)
 
 
 if __name__ == "__main__":

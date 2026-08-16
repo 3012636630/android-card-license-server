@@ -10,6 +10,7 @@
 #include "hook/hook.h"
 #include "kgsl_hide.h"
 #include "target_guard.h"
+#include "tool.h"
 
 struct kgsl_hook_spec {
     const char *symbol;
@@ -100,7 +101,7 @@ static void kgsl_release_hooks_locked(void)
     if (!g_kgsl_hooks_installed)
         return;
 
-    synchronize_rcu_tasks();
+    ls_synchronize_hook_readers();
     for (i = 0; i < g_kgsl_hooks_installed; i++)
         release_inline_hook(&g_kgsl_hooks[i]);
     g_kgsl_hooks_installed = 0;

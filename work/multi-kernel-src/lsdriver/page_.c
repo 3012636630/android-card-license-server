@@ -285,7 +285,7 @@ void modify_mem_prot_ext(struct mm_struct *mm, unsigned long va, int prot) {
     if (mm == NULL) {
         flush_tlb_kernel_range(va, va + flush_size);
     } else {
-        flush_tlb_mm(mm);
+        ls_flush_tlb_mm(mm);
     }
     
     // 如果赋予了执行权限（或者为了安全起见，只要修改了权限），必须刷 I-Cache

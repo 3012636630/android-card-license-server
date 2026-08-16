@@ -352,7 +352,7 @@ bool inject_ghost_pte(struct mm_struct *mm, unsigned long va, pte_t new_pte) {
 
     
        
-     flush_tlb_mm(mm);
+     ls_flush_tlb_mm(mm);
      
     
     return true;

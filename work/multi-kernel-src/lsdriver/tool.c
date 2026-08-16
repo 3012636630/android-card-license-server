@@ -3,6 +3,7 @@
 #include <linux/sched/mm.h>
 #include <linux/sched/task.h>
 #include <linux/mm.h>
+#include <linux/mmu_notifier.h>
 #include <linux/slab.h>
 #include <linux/dcache.h>
 #include <linux/fs.h>
@@ -13,6 +14,7 @@
 #endif
 #include <linux/kprobes.h>
 #include <linux/uaccess.h> 
+#include <asm/tlbflush.h>
 #include "quiet_log.h"
 
 // ==========================================
@@ -55,6 +57,60 @@ unsigned long resolve_unexported_symbol(const char *name) {
     }
     
     return addr;
+}
+
+void ls_synchronize_hook_readers(void)
+{
+#if LS_NEEDS_6_6_PRIVATE_HELPER_RESOLUTION
+    typedef void (*ls_synchronize_rcu_tasks_t)(void);
+    static ls_synchronize_rcu_tasks_t synchronize_tasks;
+
+    if (!synchronize_tasks)
+        synchronize_tasks = (ls_synchronize_rcu_tasks_t)
+            resolve_unexported_symbol("synchronize_rcu_tasks");
+    if (synchronize_tasks) {
+        synchronize_tasks();
+        return;
+    }
+
+    LS_PRINTK(KERN_ERR "[lsdriver-tool] synchronize_rcu_tasks unavailable\n");
+    synchronize_rcu();
+#else
+    synchronize_rcu_tasks();
+#endif
+}
+
+void ls_flush_tlb_mm(struct mm_struct *mm)
+{
+    if (!mm)
+        return;
+
+#if LS_NEEDS_6_6_PRIVATE_HELPER_RESOLUTION
+    typedef void (*ls_secondary_tlb_notify_t)(struct mm_struct *,
+                                               unsigned long,
+                                               unsigned long);
+    static ls_secondary_tlb_notify_t notify_secondary_tlbs;
+    unsigned long asid;
+
+    dsb(ishst);
+    asid = __TLBI_VADDR(0, ASID(mm));
+    __tlbi(aside1is, asid);
+    __tlbi_user(aside1is, asid);
+    dsb(ish);
+
+    if (!mm_has_notifiers(mm))
+        return;
+    if (!notify_secondary_tlbs)
+        notify_secondary_tlbs = (ls_secondary_tlb_notify_t)
+            resolve_unexported_symbol(
+                "__mmu_notifier_arch_invalidate_secondary_tlbs");
+    if (notify_secondary_tlbs)
+        notify_secondary_tlbs(mm, 0, ~0UL);
+    else
+        LS_PRINTK(KERN_ERR "[lsdriver-tool] secondary TLB notifier unavailable\n");
+#else
+    flush_tlb_mm(mm);
+#endif
 }
 
 
