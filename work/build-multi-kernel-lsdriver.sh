@@ -37,12 +37,13 @@ for key in (
     "stock_image_release",
     "clang_branch",
     "clang_revision",
+    "clang_tag_pattern",
     "module_layout_crc",
 ):
     print(target[key])
 PY
 )
-if [[ ${#target[@]} -ne 6 ]]; then
+if [[ ${#target[@]} -ne 7 ]]; then
   echo "incomplete target record for $target_id" >&2
   exit 1
 fi
@@ -51,7 +52,8 @@ commit=${target[1]}
 release=${target[2]}
 clang_branch=${target[3]}
 clang_revision=${target[4]}
-module_layout_crc=${target[5]}
+clang_tag_pattern=${target[5]}
+module_layout_crc=${target[6]}
 
 build_parent="$root/.multi-kernel-build"
 mkdir -p "$build_parent"
@@ -83,10 +85,25 @@ git clone --depth=1 --filter=blob:none --sparse \
   https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 \
   "$toolchain"
 git -C "$toolchain" sparse-checkout set "$clang_revision"
+clang_source_ref="refs/heads/$clang_branch"
+if [[ ! -x "$toolchain/$clang_revision/bin/clang" ]]; then
+  echo "requested compiler is absent from $clang_source_ref; scanning $clang_tag_pattern"
+  tag_refspec="+refs/tags/${clang_tag_pattern}:refs/tags/${clang_tag_pattern}"
+  git -C "$toolchain" fetch --depth=1 --filter=blob:none origin "$tag_refspec"
+  while IFS= read -r tag; do
+    if [[ -n $(git -C "$toolchain" ls-tree -d --name-only "$tag^{commit}" -- "$clang_revision") ]]; then
+      git -C "$toolchain" checkout --detach "$tag^{commit}"
+      git -C "$toolchain" sparse-checkout set "$clang_revision"
+      clang_source_ref="refs/tags/$tag"
+      break
+    fi
+  done < <(git -C "$toolchain" tag -l "$clang_tag_pattern" --sort=-version:refname)
+fi
 clang_source_commit=$(git -C "$toolchain" rev-parse HEAD)
 clang_root="$toolchain/$clang_revision"
 if [[ ! -x "$clang_root/bin/clang" ]]; then
-  echo "missing requested compiler: $clang_root/bin/clang" >&2
+  echo "missing requested compiler after branch/tag scan: $clang_root/bin/clang" >&2
+  git -C "$toolchain" ls-tree -d --name-only HEAD | grep '^clang-' >&2 || true
   exit 1
 fi
 export PATH="$clang_root/bin:$PATH"
@@ -143,7 +160,43 @@ make_flags=(
   LLVM=1
   LLVM_IAS=1
 )
-make "${make_flags[@]}" olddefconfig
+kconfig_stub_log="$artifacts/kconfig-stubs.txt"
+: > "$kconfig_stub_log"
+for attempt in $(seq 1 64); do
+  set +e
+  config_output=$(make "${make_flags[@]}" olddefconfig 2>&1)
+  config_status=$?
+  set -e
+  printf '%s\n' "$config_output"
+  if [[ $config_status -eq 0 ]]; then
+    break
+  fi
+  mapfile -t missing_kconfigs < <(
+    printf '%s\n' "$config_output" |
+      sed -n 's/.*can.t open file "\([^"]*Kconfig\)".*/\1/p' |
+      sort -u
+  )
+  if [[ ${#missing_kconfigs[@]} -eq 0 ]]; then
+    exit "$config_status"
+  fi
+  for relative in "${missing_kconfigs[@]}"; do
+    case "$relative" in
+      /*|../*|*/../*) echo "unsafe missing Kconfig path: $relative" >&2; exit 1 ;;
+    esac
+    stub="$kernel/$relative"
+    if [[ -e "$stub" ]]; then
+      echo "reported missing Kconfig already exists: $relative" >&2
+      exit 1
+    fi
+    mkdir -p "$(dirname "$stub")"
+    printf '# Empty stub for an omitted OEM Kconfig subtree.\n' > "$stub"
+    printf '%s\n' "$relative" | tee -a "$kconfig_stub_log"
+  done
+  if [[ $attempt -eq 64 ]]; then
+    echo "Kconfig stub retry limit exceeded" >&2
+    exit 1
+  fi
+done
 make "${make_flags[@]}" -j"$(nproc)" modules_prepare
 cp "$evidence/Module.symvers" "$out/Module.symvers"
 
@@ -176,6 +229,7 @@ python3 "$root/work/verify-multi-kernel-carrier.py" \
   --source-commit "$actual_commit" \
   --clang-revision "$clang_revision" \
   --clang-source-commit "$clang_source_commit" \
+  --clang-source-ref "$clang_source_ref" \
   --clang-binary "$clang_root/bin/clang" \
   --output "$artifacts/carrier-manifest.json"
 

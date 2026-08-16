@@ -33,6 +33,9 @@ shadow-call-stack, MODVERSIONS, and DWARF settings. It does not run QEMU on the 
 - `adapter-analysis.json`: strict adapter analysis against the stock reference
   module and Image-derived `Module.symvers`.
 - `kbuild.log`, `config.build`, `config.delta`, and `clang-version.txt`.
+- `kconfig-stubs.txt`: OEM Kconfig files referenced by the vendor tree but omitted
+  from its published source. Only missing, relative paths inside the checkout are
+  stubbed; every resulting config change remains visible in `config.delta`.
 
 Cloud output is static compatibility evidence, not the final runtime-tested
 release. After the phone reconnects, the carrier still needs the isolated

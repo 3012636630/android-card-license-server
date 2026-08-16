@@ -34,6 +34,7 @@ def parse_args():
     parser.add_argument("--source-commit", required=True)
     parser.add_argument("--clang-revision", required=True)
     parser.add_argument("--clang-source-commit", required=True)
+    parser.add_argument("--clang-source-ref", required=True)
     parser.add_argument("--clang-binary", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     return parser.parse_args()
@@ -135,6 +136,7 @@ def main():
             "source_commit": args.source_commit,
             "clang_revision": args.clang_revision,
             "clang_source_commit": args.clang_source_commit,
+            "clang_source_ref": args.clang_source_ref,
             "clang_binary_sha256": sha256_file(args.clang_binary),
             "stock_image_sha256": target["stock_image_sha256"],
         },
