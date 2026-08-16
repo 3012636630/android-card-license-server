@@ -120,6 +120,29 @@ class MultiKernelSourceCompatTests(unittest.TestCase):
         ):
             self.assertIn(f'get_symbol_addr("{symbol}")', debug_hook)
 
+    def test_missing_vendor_kgsl_hooks_defer_without_masking_real_failures(self):
+        kgsl = (SOURCE / "kgsl_hide.c").read_text(encoding="utf-8")
+        self.assertIn("ret == -ENOENT &&", kgsl)
+        self.assertIn("i != KGSL_HOOK_SYSFS_CREATE_GROUP", kgsl)
+        self.assertIn(
+            "KGSL hook %s unavailable; install deferred",
+            kgsl,
+        )
+        self.assertIn("cleanup_ret = kgsl_restore_hooks_locked();", kgsl)
+        self.assertRegex(
+            kgsl,
+            r"if \(cleanup_ret\) \{\s*ret = cleanup_ret;\s*\} else \{",
+        )
+        self.assertRegex(
+            kgsl,
+            r"if \(optional_symbol_missing\)\s*ret = 0;",
+        )
+
+        main = (SOURCE / "main.c").read_text(encoding="utf-8")
+        control = (SOURCE / "coom.c").read_text(encoding="utf-8")
+        self.assertIn("ret = ls_kgsl_hide_install();", main)
+        self.assertIn("ret = ls_kgsl_hide_install();", control)
+
 
 if __name__ == "__main__":
     unittest.main()

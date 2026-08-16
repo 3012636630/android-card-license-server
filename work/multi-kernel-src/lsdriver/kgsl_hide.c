@@ -110,7 +110,8 @@ static void kgsl_release_hooks_locked(void)
 int ls_kgsl_hide_install(void)
 {
     unsigned int i;
-    int ret;
+    int ret, cleanup_ret;
+    bool optional_symbol_missing;
 
     mutex_lock(&g_kgsl_hook_lock);
     if (g_kgsl_hooks_installed == KGSL_HOOK_COUNT) {
@@ -130,10 +131,23 @@ int ls_kgsl_hide_install(void)
                              g_kgsl_hook_specs[i].symbol,
                              g_kgsl_hook_specs[i].handler);
         if (ret) {
-            pr_err("lsdriver: KGSL hook %s failed: %d\n",
-                   g_kgsl_hook_specs[i].symbol, ret);
-            if (!kgsl_restore_hooks_locked())
+            optional_symbol_missing = ret == -ENOENT &&
+                                      i != KGSL_HOOK_SYSFS_CREATE_GROUP;
+            if (optional_symbol_missing)
+                pr_info("lsdriver: KGSL hook %s unavailable; install deferred\n",
+                        g_kgsl_hook_specs[i].symbol);
+            else
+                pr_err("lsdriver: KGSL hook %s failed: %d\n",
+                       g_kgsl_hook_specs[i].symbol, ret);
+
+            cleanup_ret = kgsl_restore_hooks_locked();
+            if (cleanup_ret) {
+                ret = cleanup_ret;
+            } else {
                 kgsl_release_hooks_locked();
+                if (optional_symbol_missing)
+                    ret = 0;
+            }
             goto out_unlock;
         }
         g_kgsl_hooks_installed++;
